@@ -1,0 +1,2534 @@
+﻿
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Сфера Денег</title>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#03030a;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:none;color:#fff}
+canvas{display:block;width:100vw;height:100vh}
+
+/* HUD */
+#hud{position:fixed;top:0;left:0;right:0;padding:22px 16px;display:flex;flex-direction:column;align-items:center;pointer-events:none;z-index:5}
+.label{font-size:11px;letter-spacing:.35em;color:rgba(180,200,255,.55);font-weight:700;text-transform:uppercase}
+.money-row{display:flex;align-items:center;gap:14px;margin-top:6px}
+.money{font-size:clamp(30px,7vw,54px);font-weight:800;color:#fff;text-shadow:0 0 18px rgba(120,170,255,.65);font-variant-numeric:tabular-nums;line-height:1.1}
+.money .cur{font-size:.55em;opacity:.75;margin-left:3px}
+.plus-btn{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:26px;color:#ffe27a;background:linear-gradient(180deg,rgba(255,215,120,.14),rgba(180,140,40,.1));border:1px solid rgba(255,215,120,.42);cursor:pointer;padding:0 0 3px 0;pointer-events:auto}
+.hint{margin-top:12px;font-size:11px;color:rgba(160,180,230,.42);text-align:center}
+
+/* Gold */
+.gold-wrap{position:fixed;top:calc(20px + env(safe-area-inset-top,0px));left:20px;z-index:6;display:flex;align-items:center;gap:8px}
+.gold-badge{display:flex;align-items:center;gap:7px;padding:8px 14px;background:linear-gradient(180deg,rgba(255,215,120,.14),rgba(140,100,20,.1));border:1px solid rgba(255,215,120,.34);border-radius:14px;color:#ffe27a;font-weight:800;font-size:15px;pointer-events:none}
+.gold-badge.pulse-anim{animation:gp .55s ease-out}
+@keyframes gp{0%,100%{transform:scale(1)}35%{transform:scale(1.22)}}
+.gold-plus{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;color:#ffe27a;background:linear-gradient(180deg,rgba(255,215,120,.14),rgba(180,140,40,.1));border:1px solid rgba(255,215,120,.42);cursor:pointer;padding:0 0 3px 0}
+
+/* Settings gear */
+.settings-btn{position:fixed;top:calc(20px + env(safe-area-inset-top,0px));right:20px;z-index:6;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;background:linear-gradient(180deg,rgba(150,185,255,0.14),rgba(60,80,160,0.1));border:1px solid rgba(150,185,255,0.42);color:#a8c0ff;cursor:pointer;padding:0;transition:all .25s ease}
+.settings-btn:hover{transform:rotate(60deg) scale(1.1)}
+.settings-btn:active{transform:rotate(60deg) scale(0.94)}
+
+/* Bottom bar */
+.bottom-bar{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:10;display:flex;gap:10px}
+.bar-btn{display:flex;align-items:center;gap:8px;padding:12px 18px;background:linear-gradient(180deg,rgba(70,95,200,.6),rgba(30,42,100,.88));border:1px solid rgba(150,185,255,.45);border-radius:16px;color:#fff;font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap}
+
+/* Modals */
+.modal{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:16px;transition:opacity .22s}
+.modal.hidden{opacity:0;pointer-events:none}
+.modal-backdrop{position:absolute;inset:0;background:rgba(3,5,18,.72);backdrop-filter:blur(8px)}
+.modal-panel{position:relative;width:100%;max-width:440px;background:linear-gradient(160deg,rgba(30,42,90,.95),rgba(14,20,48,.98));border:1px solid rgba(150,185,255,.28);border-radius:22px;overflow:hidden;max-height:calc(100vh - 32px);display:flex;flex-direction:column}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:18px 22px 14px;border-bottom:1px solid rgba(150,185,255,.1)}
+.modal-header h2{margin:0;font-size:19px;font-weight:800}
+.modal-close{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:rgba(150,185,255,.08);border:1px solid rgba(150,185,255,.18);color:#cfe0ff;font-size:20px;cursor:pointer;font-family:inherit}
+.modal-body{padding:14px 16px 20px;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
+.modal-body.hidden{display:none}
+
+/* Shop tabs */
+.shop-tabs{display:flex;gap:6px;padding:0 16px;background:rgba(10,15,35,.4);border-bottom:1px solid rgba(150,185,255,.12)}
+.shop-tab{flex:1;padding:12px 8px;background:none;border:none;color:rgba(180,200,255,.55);font-family:inherit;font-size:13px;font-weight:800;cursor:pointer;border-bottom:2px solid transparent}
+.shop-tab.active{color:#ffe27a;border-bottom-color:#ffe27a}
+
+/* Shop items */
+.shop-item{display:flex;align-items:center;gap:14px;padding:14px 16px;background:linear-gradient(150deg,rgba(60,80,160,.3),rgba(25,35,75,.55));border:1px solid rgba(150,185,255,.16);border-radius:16px}
+.shop-item.can-buy{border-color:rgba(255,215,120,.45)}
+.shop-item.owned{border-color:rgba(120,255,180,.35)}
+.shop-item.selected{border-color:rgba(120,255,180,.8);background:linear-gradient(150deg,rgba(50,130,100,.4),rgba(20,60,50,.6))}
+.shop-item.locked{opacity:.55}
+.shop-icon{font-size:30px;flex-shrink:0}
+.shop-info{flex:1;min-width:0}
+.shop-name{font-size:14px;font-weight:800;display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.owned-tag{font-size:10px;padding:2px 7px;border-radius:6px;background:rgba(120,255,180,.18);color:#7effb4;border:1px solid rgba(120,255,180,.35)}
+.owned-tag:empty{display:none}
+.shop-desc{font-size:11.5px;opacity:.68;margin-top:3px;line-height:1.35;color:rgba(200,215,255,.85)}
+.buy-btn{flex-shrink:0;padding:10px 14px;border-radius:11px;font-family:inherit;font-size:14px;font-weight:800;color:#ffe27a;background:linear-gradient(180deg,rgba(255,215,120,.14),rgba(180,140,40,.1));border:1px solid rgba(255,215,120,.4);cursor:pointer;white-space:nowrap}
+.buy-btn.disabled{opacity:.4;cursor:not-allowed;filter:grayscale(.7);color:#a0b0d0}
+.buy-btn.done{color:#7effb4;border-color:rgba(120,255,180,.45)}
+.buy-btn.selected{color:#7effb4;border-color:rgba(120,255,180,.65);background:linear-gradient(180deg,rgba(120,255,180,.22),rgba(40,140,90,.15));cursor:default}
+
+/* Exchange */
+.ex-display{display:flex;flex-direction:column;align-items:center;padding:22px;background:linear-gradient(180deg,rgba(255,215,120,.1),rgba(140,100,20,.04));border:1px solid rgba(255,215,120,.22);border-radius:18px}
+.ex-display .big-ico{font-size:44px;margin-bottom:6px}
+.ex-display .big-val{font-size:40px;font-weight:800;color:#ffe27a}
+.ex-display .rate{font-size:12px;color:rgba(255,220,150,.7);margin-top:8px;font-weight:700}
+.ex-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ex-btn{padding:14px;border-radius:13px;font-family:inherit;font-size:14px;font-weight:800;color:#ffe27a;background:linear-gradient(180deg,rgba(255,215,120,.15),rgba(180,140,40,.1));border:1px solid rgba(255,215,120,.42);cursor:pointer}
+.ex-btn.disabled{opacity:.35;cursor:not-allowed;filter:grayscale(.6);color:#a0b0d0}
+
+/* Promo */
+.promo-input{width:100%;padding:14px;background:rgba(10,15,35,.72);border:1px solid rgba(150,185,255,.25);border-radius:13px;color:#fff;font-size:16px;font-family:inherit;font-weight:800;letter-spacing:.12em;text-transform:uppercase;text-align:center;outline:none}
+.promo-activate{padding:14px;border-radius:13px;font-family:inherit;font-size:15px;font-weight:800;color:#ffe27a;background:linear-gradient(180deg,rgba(255,215,120,.18),rgba(180,140,40,.12));border:1px solid rgba(255,215,120,.45);cursor:pointer}
+.promo-activate:disabled{opacity:.5;cursor:wait}
+.promo-msg{min-height:22px;font-size:13px;text-align:center;font-weight:800}
+.promo-msg.ok{color:#7effb4}
+.promo-msg.err{color:#ff8080}
+.promo-msg.wait{color:#ffe27a}
+.promo-note{font-size:11px;color:rgba(255,120,120,.75);text-align:center;line-height:1.4;padding:8px 10px;background:rgba(255,80,80,.06);border:1px solid rgba(255,120,120,.18);border-radius:10px}
+
+/* Gold buy */
+.gold-opt{display:flex;align-items:center;gap:14px;padding:14px 16px;background:linear-gradient(150deg,rgba(255,215,120,.1),rgba(140,100,20,.05));border:1px solid rgba(255,215,120,.22);border-radius:16px;cursor:pointer;font-family:inherit;color:#fff;text-align:left}
+.gold-opt.selected{border-color:rgba(255,215,120,.85)}
+.gold-opt-ico{font-size:32px;flex-shrink:0}
+.gold-opt-info{flex:1}
+.gold-opt-amount{font-size:16px;font-weight:800;color:#ffe27a}
+.gold-opt-price{font-size:12px;opacity:.7;margin-top:2px;font-weight:700}
+.gold-opt-check{font-size:22px;color:#7effb4;opacity:0;flex-shrink:0}
+.gold-opt.selected .gold-opt-check{opacity:1}
+.gold-warn{padding:14px;background:linear-gradient(180deg,rgba(255,60,60,.1),rgba(120,20,20,.06));border:1px solid rgba(255,90,90,.42);border-radius:14px;display:flex;flex-direction:column;gap:10px}
+.gold-warn.hidden{display:none}
+.warn-head{display:flex;align-items:center;gap:8px;color:#ff6060;font-weight:900;font-size:13px;text-transform:uppercase}
+.warn-body{font-size:13px;line-height:1.5;color:#ffb0b0;font-weight:600}
+.warn-body ul{margin:6px 0 0 0;padding-left:20px;color:#ffdada}
+.warn-body b{color:#fff;background:rgba(255,90,90,.18);padding:1px 6px;border-radius:5px}
+.warn-amount{font-size:14px;text-align:center;padding:10px;background:rgba(255,255,255,.05);border-radius:10px;font-weight:800}
+.warn-amount span{color:#ffe27a}
+.gold-next-btn{padding:15px;border-radius:14px;font-family:inherit;font-size:15px;font-weight:900;color:#0a0d1e;background:linear-gradient(180deg,#ffe27a,#e0a828);border:1px solid rgba(255,215,120,.65);cursor:pointer}
+.gold-next-btn:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.4);background:linear-gradient(180deg,rgba(255,215,120,.3),rgba(140,100,20,.2));color:#e0d0a0}
+
+/* Settings danger */
+.settings-danger{padding:16px;background:linear-gradient(180deg,rgba(255,60,60,.08),rgba(120,20,20,.04));border:1px solid rgba(255,90,90,.38);border-radius:16px;display:flex;flex-direction:column;gap:12px}
+.danger-head{display:flex;align-items:center;gap:8px;color:#ff6060;font-weight:900;font-size:14px;text-transform:uppercase}
+.danger-desc{font-size:12.5px;line-height:1.5;color:#ffb0b0;font-weight:600}
+.reset-btn{padding:14px;border-radius:13px;font-family:inherit;font-size:15px;font-weight:900;color:#fff;background:linear-gradient(180deg,#e84040,#a01010);border:1px solid rgba(255,120,120,0.6);cursor:pointer;letter-spacing:.05em;text-transform:uppercase}
+.reset-btn.countdown{background:linear-gradient(180deg,#4a2020,#2a0808);border-color:rgba(255,120,120,.3);cursor:not-allowed}
+.reset-btn.confirm{background:linear-gradient(180deg,#ff3030,#b00000);animation:cp .8s ease-in-out infinite;border-color:rgba(255,150,150,0.9)}
+@keyframes cp{0%,100%{box-shadow:0 0 20px rgba(255,50,50,0.5)}50%{box-shadow:0 0 40px rgba(255,50,50,0.95)}}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div class="gold-wrap">
+  <div id="goldBadge" class="gold-badge"><span>🏆</span><span id="goldVal">0</span></div>
+  <button id="goldPlusBtn" class="gold-plus">+</button>
+</div>
+
+<button id="settingsBtn" class="settings-btn">⚙</button>
+
+<div id="hud">
+  <div class="label">Баланс</div>
+  <div class="money-row">
+    <div class="money"><span id="val">0</span><span class="cur">$</span></div>
+    <button id="plusBtn" class="plus-btn">+</button>
+  </div>
+  <div class="hint">тяни сферу · тряси телефон · кликай</div>
+</div>
+
+<div class="bottom-bar">
+  <button id="shopBtn" class="bar-btn">🛒 Магазин</button>
+  <button id="promoBtn" class="bar-btn">🎁 Промокоды</button>
+</div>
+
+<!-- SHOP -->
+<div id="modal" class="modal hidden">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-panel">
+    <div class="modal-header"><h2>Магазин</h2><button class="modal-close" data-close>×</button></div>
+    <div class="shop-tabs">
+      <button class="shop-tab active" data-tab="upgrades">🛠 Прокачка</button>
+      <button class="shop-tab" data-tab="backgrounds">🌌 Фоны</button>
+    </div>
+    <div class="modal-body" id="tabUpgrades">
+      <div class="shop-item" id="itemAuto">
+        <div class="shop-icon">⚡</div>
+        <div class="shop-info"><div class="shop-name">Авто-клик <span class="owned-tag" id="autoOwned"></span></div>
+        <div class="shop-desc">+1$ каждые 3 сек.</div></div>
+        <button class="buy-btn" id="buyAuto">500$</button>
+      </div>
+      <div class="shop-item" id="itemUpgrade">
+        <div class="shop-icon">💎</div>
+        <div class="shop-info"><div class="shop-name">Прокачка сферы <span class="owned-tag" id="upgradeOwned"></span></div>
+        <div class="shop-desc">+1$ за клик (итого 2$). Энергетическая сфера.</div></div>
+        <button class="buy-btn" id="buyUpgrade">1500$</button>
+      </div>
+      <div class="shop-item" id="itemUpgrade2">
+        <div class="shop-icon">🪐</div>
+        <div class="shop-info"><div class="shop-name">Планета <span class="owned-tag" id="upgrade2Owned"></span></div>
+        <div class="shop-desc">+1$ за клик (итого 3$). Планета с океанами.</div></div>
+        <button class="buy-btn" id="buyUpgrade2">3000$</button>
+      </div>
+      <div class="shop-item" id="itemUpgrade3">
+        <div class="shop-icon">🌠</div>
+        <div class="shop-info"><div class="shop-name">Газовый гигант <span class="owned-tag" id="upgrade3Owned"></span></div>
+        <div class="shop-desc">+2$ за клик (итого 5$). Кольца и спутники.</div></div>
+        <button class="buy-btn" id="buyUpgrade3">7500$</button>
+      </div>
+    </div>
+    <div class="modal-body hidden" id="tabBackgrounds">
+      <div class="shop-item selected" id="itemBgDefault">
+        <div class="shop-icon">🌑</div>
+        <div class="shop-info"><div class="shop-name">Стандартный <span class="owned-tag">✓</span></div>
+        <div class="shop-desc">Базовый тёмно-синий космос.</div></div>
+        <button class="buy-btn done" id="selectBgDefault">ВЫБРАН</button>
+      </div>
+      <div class="shop-item" id="itemBgSpace">
+        <div class="shop-icon">🌌</div>
+        <div class="shop-info"><div class="shop-name">Звёздный космос <span class="owned-tag" id="bgSpaceOwned"></span></div>
+        <div class="shop-desc">Мерцающие звёзды и галактики.</div></div>
+        <button class="buy-btn" id="buyBgSpace">2500$</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EXCHANGE -->
+<div id="exchangeModal" class="modal hidden">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-panel">
+    <div class="modal-header"><h2>Обмен золота</h2><button class="modal-close" data-close>×</button></div>
+    <div class="modal-body">
+      <div class="ex-display">
+        <div class="big-ico">🏆</div>
+        <div class="big-val" id="exchangeGoldVal">0</div>
+        <div class="rate">1 🏆 = 2 500$</div>
+      </div>
+      <div class="ex-actions">
+        <button id="exOne" class="ex-btn">Обменять 1</button>
+        <button id="exAll" class="ex-btn">Обменять всё</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PROMO -->
+<div id="promoModal" class="modal hidden">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-panel">
+    <div class="modal-header"><h2>Промокоды</h2><button class="modal-close" data-close>×</button></div>
+    <div class="modal-body">
+      <input id="promoInput" class="promo-input" type="text" placeholder="ВВЕДИ КОД" autocomplete="off" spellcheck="false">
+      <button id="promoActivate" class="promo-activate">Активировать</button>
+      <div id="promoMsg" class="promo-msg"></div>
+      <div class="promo-note">⚠ Каждый промокод можно использовать <b>один раз во всём мире</b>.</div>
+    </div>
+  </div>
+</div>
+
+<!-- GOLD BUY -->
+<div id="goldBuyModal" class="modal hidden">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-panel">
+    <div class="modal-header"><h2>Купить золото</h2><button class="modal-close" data-close>×</button></div>
+    <div class="modal-body">
+      <div id="goldOptions" style="display:flex;flex-direction:column;gap:10px">
+        <button class="gold-opt" data-gold="10" data-price="100">
+          <div class="gold-opt-ico">🏆</div>
+          <div class="gold-opt-info"><div class="gold-opt-amount">10 золота</div><div class="gold-opt-price">100 грн</div></div>
+          <div class="gold-opt-check">✓</div>
+        </button>
+        <button class="gold-opt" data-gold="30" data-price="250">
+          <div class="gold-opt-ico">🏆</div>
+          <div class="gold-opt-info"><div class="gold-opt-amount">30 золота</div><div class="gold-opt-price">250 грн</div></div>
+          <div class="gold-opt-check">✓</div>
+        </button>
+        <button class="gold-opt" data-gold="100" data-price="750">
+          <div class="gold-opt-ico">🏆</div>
+          <div class="gold-opt-info"><div class="gold-opt-amount">100 золота</div><div class="gold-opt-price">750 грн</div></div>
+          <div class="gold-opt-check">✓</div>
+        </button>
+      </div>
+      <div id="goldWarn" class="gold-warn hidden">
+        <div class="warn-head"><span>⚠</span> Внимание!</div>
+        <div class="warn-body">Укажи в комментарии к переводу:<ul><li>Сколько золота</li><li>Твой <b>юзернейм в Telegram</b></li></ul></div>
+        <div class="warn-amount">Выбрано: <span id="warnSelected">10 золота — 100 грн</span></div>
+      </div>
+      <button id="goldNextBtn" class="gold-next-btn" disabled>Выбери вариант</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div id="settingsModal" class="modal hidden">
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-panel">
+    <div class="modal-header"><h2>Настройки</h2><button class="modal-close" data-close>×</button></div>
+    <div class="modal-body">
+      <div class="settings-danger">
+        <div class="danger-head"><span>⚠</span> Опасная зона</div>
+        <div class="danger-desc">Полный сброс: деньги, золото, покупки, прокачки и промокоды удалятся навсегда.</div>
+        <button id="resetBtn" class="reset-btn">Очистить прогресс</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =======================================================================
+   БЛОК СОХРАНЕНИЯ — НЕ УДАЛЯТЬ, НЕ МЕНЯТЬ КЛЮЧИ
+   ======================================================================= */
+const SAVE_KEY = 'SPHERE_MONEY_GAME_SAVE_DO_NOT_CHANGE_2024';
+const SAVE_KEY_BACKUP = 'SPHERE_MONEY_GAME_SAVE_BACKUP';
+const SAVE_LEGACY_KEYS = ['sphereGameSave_v1','sphereGameSave_v2','sphereGameSave_v3'];
+const SAVE_STRUCTURE_VERSION = 3;
+
+function getDefaultSave(){
+  return { _v:SAVE_STRUCTURE_VERSION, m:0, g:0, a:0, u:false, u2:false, u3:false, bg:'', bs:false, pc:[], _ts:0 };
+}
+
+function mergeSave(data){
+  const def = getDefaultSave();
+  if (!data || typeof data !== 'object') return def;
+  const o = { ...def };
+  if (typeof data.m === 'number' && isFinite(data.m)) o.m = Math.max(0, data.m);
+  if (typeof data.g === 'number' && isFinite(data.g)) o.g = Math.max(0, data.g);
+  if (typeof data.a === 'number' && isFinite(data.a)) o.a = Math.max(0, data.a | 0);
+  if (typeof data.u === 'boolean') o.u = data.u;
+  if (typeof data.u2 === 'boolean') o.u2 = data.u2;
+  if (typeof data.u3 === 'boolean') o.u3 = data.u3;
+  if (typeof data.bg === 'string') o.bg = data.bg;
+  if (typeof data.bs === 'boolean') o.bs = data.bs;
+  if (Array.isArray(data.pc)) o.pc = data.pc.filter(x => typeof x === 'string');
+  if (typeof data._ts === 'number') o._ts = data._ts;
+  if (typeof data._v === 'number') o._v = data._v;
+  return o;
+}
+
+function migrateLegacySaves(){
+  if (localStorage.getItem(SAVE_KEY)) return;
+  const backup = localStorage.getItem(SAVE_KEY_BACKUP);
+  if (backup){
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(mergeSave(JSON.parse(backup))));
+      return;
+    } catch(e){}
+  }
+  for (const key of SAVE_LEGACY_KEYS){
+    const raw = localStorage.getItem(key);
+    if (!raw) continue;
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(mergeSave(JSON.parse(raw))));
+      return;
+    } catch(e){}
+  }
+}
+
+function writeSave(data){
+  try {
+    const json = JSON.stringify(data);
+    localStorage.setItem(SAVE_KEY, json);
+    const now = Date.now();
+    const lastB = parseInt(localStorage.getItem(SAVE_KEY_BACKUP + '_ts') || '0', 10);
+    if (now - lastB > 60000){
+      localStorage.setItem(SAVE_KEY_BACKUP, json);
+      localStorage.setItem(SAVE_KEY_BACKUP + '_ts', String(now));
+    }
+    return true;
+  } catch(e){
+    return false;
+  }
+}
+
+function readSave(){
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (raw) return mergeSave(JSON.parse(raw));
+  } catch(e){}
+  try {
+    const raw = localStorage.getItem(SAVE_KEY_BACKUP);
+    if (raw) return mergeSave(JSON.parse(raw));
+  } catch(e){}
+  return getDefaultSave();
+}
+/* ============ КОНЕЦ БЛОКА СОХРАНЕНИЯ ============ */
+
+/* ⚙ FIREBASE — вставь сюда свой URL, если хочешь глобальные промокоды */
+const FIREBASE_URL = 'https://YOUR-PROJECT-default-rtdb.firebaseio.com';
+
+/* =======================================================================
+   ОСНОВНОЙ СКРИПТ
+   ======================================================================= */
+(() => {
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  const $ = id => document.getElementById(id);
+
+  /* === DOM элементы === */
+  const valEl = $('val');
+  const goldValEl = $('goldVal');
+  const goldBadge = $('goldBadge');
+  const goldPlusBtn = $('goldPlusBtn');
+  const shopBtn = $('shopBtn');
+  const promoBtn = $('promoBtn');
+  const plusBtn = $('plusBtn');
+  const settingsBtn = $('settingsBtn');
+
+  const modal = $('modal');
+  const exchangeModal = $('exchangeModal');
+  const promoModal = $('promoModal');
+  const goldBuyModal = $('goldBuyModal');
+  const settingsModal = $('settingsModal');
+
+  const itemAuto = $('itemAuto');
+  const itemUpg = $('itemUpgrade');
+  const itemUpg2 = $('itemUpgrade2');
+  const itemUpg3 = $('itemUpgrade3');
+  const buyAutoBtn = $('buyAuto');
+  const buyUpgBtn = $('buyUpgrade');
+  const buyUpg2Btn = $('buyUpgrade2');
+  const buyUpg3Btn = $('buyUpgrade3');
+  const autoOwnedEl = $('autoOwned');
+  const upgradeOwnedEl = $('upgradeOwned');
+  const upgrade2OwnedEl = $('upgrade2Owned');
+  const upgrade3OwnedEl = $('upgrade3Owned');
+
+  const itemBgDefault = $('itemBgDefault');
+  const selectBgDefaultBtn = $('selectBgDefault');
+  const itemBgSpace = $('itemBgSpace');
+  const buyBgSpaceBtn = $('buyBgSpace');
+  const bgSpaceOwnedEl = $('bgSpaceOwned');
+
+  const tabUpgrades = $('tabUpgrades');
+  const tabBackgrounds = $('tabBackgrounds');
+
+  const exchangeGoldValEl = $('exchangeGoldVal');
+  const exOneBtn = $('exOne');
+  const exAllBtn = $('exAll');
+
+  const promoInputEl = $('promoInput');
+  const promoActivateEl = $('promoActivate');
+  const promoMsgEl = $('promoMsg');
+
+  const goldOptions = document.querySelectorAll('.gold-opt');
+  const goldWarnEl = $('goldWarn');
+  const warnSelectedEl = $('warnSelected');
+  const goldNextBtn = $('goldNextBtn');
+
+  const resetBtn = $('resetBtn');
+
+  /* === Размеры и трансформация === */
+  let W = 0, H = 0, DPR = 1;
+  let cx = 0, cyBase = 0, Rbase = 120, R = 120;
+  let sceneScale = 1;
+  let revealActive = false, revealT = 0;
+  const REVEAL_DUR = 2.0;
+  let revealFromScale = 1;
+
+  /* === Reset === */
+  let resetting = false, resetT = 0;
+  const RESET_DURATION = 4.0;
+  let resetArmed = false, resetCountdown = 0, resetCountdownTimer = null;
+
+  /* === Фон === */
+  let bgW = 0, bgH = 0, bgOffX = 0, bgOffY = 0;
+  const BG_OVERSIZE = 1.7;
+
+  /* === Игрок === */
+  let money = 0, shown = 0;
+  let gold = 0, goldShown = 0;
+  let pulse = 0, boost = 0, orbAngle = 0;
+
+  /* === Частицы и объекты === */
+  let twinkleStars = [];
+  let dust = [];
+  const coins = [];
+  const ripples = [];
+  const texts = [];
+
+  /* === Фон === */
+  let bgType = '';
+  let bgStars = [];
+  let bgGalaxies = [];
+  let hasSpaceBg = false;
+
+  /* === Константы покупок === */
+  const AUTO_COST = 500, AUTO_INTERVAL = 3.0;
+  const UPGRADE_COST = 1500;
+  const UPGRADE2_COST = 3000;
+  const UPGRADE3_COST = 7500;
+  const BG_SPACE_COST = 2500;
+  const GOLD_RATE = 2500;
+  const GOLD_CHANCE = 0.001;
+
+  /* === Апгрейды === */
+  let autoCount = 0, autoTimer = 0;
+  let upgraded = false, upgraded2 = false, upgraded3 = false;
+  const autoRings = [];
+  let buyFlash = 0;
+
+  function clickValue(){
+    if (upgraded3) return 5;
+    if (upgraded2) return 3;
+    if (upgraded) return 2;
+    return 1;
+  }
+  function computeR(){
+    Rbase = Math.max(70, Math.min(Math.min(W, H) * 0.21, 170));
+    let m = 1;
+    if (upgraded3) m = 1.5;
+    else if (upgraded2) m = 1.18;
+    R = Rbase * m;
+  }
+  function targetSceneScale(){ return upgraded3 ? 0.72 : 1; }
+  function smoothstep(x){ x = Math.max(0, Math.min(1, x)); return x*x*(3 - 2*x); }
+
+  const PROMO_CODES = {
+  /* === СТАРЫЕ КОДЫ === */
+  'HELLOOK':    { gold: 15 },
+  'GOLD50':     { gold: 50 },
+  'MONEY5000':  { money: 5000 },
+  'LUCKY777':   { gold: 7, money: 7777 },
+  'SPHERE2024': { money: 2500 },
+  'FREEGOLD':   { gold: 25 },
+  'AUTO1':      { auto: 1 },
+  '777':        { money: 777 },
+  'MGY':        { money: -5000 },
+
+  /* === СЕКРЕТНЫЕ: 10 ЗОЛОТА === */
+  'XK7M2P9Q4N': { gold: 10 },
+  'B8F3H6R1T5': { gold: 10 },
+  'J4L9W7C2Y8': { gold: 10 },
+  'M6D1V5Z3K9': { gold: 10 },
+  'Q2N8G4B7R1': { gold: 10 },
+
+  /* === СЕКРЕТНЫЕ: 30 ЗОЛОТА === */
+  'P5T9H3M7X2': { gold: 30 },
+  'W1C6L4Y8D3': { gold: 30 },
+  'N7B2F9Q5R4': { gold: 30 },
+  'Z4K8V1P6H9': { gold: 30 },
+  'Y3M7R2T5C8': { gold: 30 },
+
+  /* === СЕКРЕТНЫЕ: 100 ЗОЛОТА === */
+  'G9X4B7N2M5': { gold: 100 },
+  'H6W1P8K3R7': { gold: 100 },
+  'L2Y5C9V4B8': { gold: 100 },
+  'R8T3M6X1Z5': { gold: 100 },
+  'C4Q7N2H9P6': { gold: 100 },
+};
+  const usedPromos = new Set();
+
+  function safeKey(c){
+    return String(c).toUpperCase().replace(/[^A-Z0-9]/g, '') || 'CODE';
+  }
+
+  async function claimPromoGlobal(rawCode){
+    if (!FIREBASE_URL || FIREBASE_URL.includes('YOUR-PROJECT')) return -1;
+    const key = safeKey(rawCode);
+    const url = FIREBASE_URL + '/promos/' + key + '.json';
+    try {
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), 8000);
+      const r1 = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
+      clearTimeout(tid);
+      if (!r1.ok) return null;
+      const existing = await r1.json();
+      if (existing) return 2;
+      const r2 = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ t: Date.now() })
+      });
+      if (!r2.ok) return null;
+      return 1;
+    } catch(e){
+      return null;
+    }
+  }
+
+  /* === ЗОЛОТАЯ ПОКУПКА === */
+  let goldBuySelected = null;
+  let goldBuyTimer = null;
+  let goldBuyCountdown = 0;
+  const MONO_URL = 'https://send.monobank.ua/jar/6vTNFTLWPM';
+
+  function resetGoldBuy(){
+    if (goldBuyTimer){ clearInterval(goldBuyTimer); goldBuyTimer = null; }
+    goldBuyCountdown = 0;
+    goldBuySelected = null;
+    goldOptions.forEach(el => el.classList.remove('selected'));
+    goldWarnEl.classList.add('hidden');
+    goldNextBtn.disabled = true;
+    goldNextBtn.textContent = 'Выбери вариант';
+  }
+  function updateNextBtn(){
+    if (!goldBuySelected){
+      goldNextBtn.disabled = true;
+      goldNextBtn.textContent = 'Выбери вариант';
+      return;
+    }
+    if (goldBuyCountdown > 0){
+      goldNextBtn.disabled = true;
+      goldNextBtn.textContent = 'Далее (' + goldBuyCountdown + ')';
+    } else {
+      goldNextBtn.disabled = false;
+      goldNextBtn.textContent = 'Далее →';
+    }
+  }
+  goldOptions.forEach(el => {
+    el.addEventListener('click', e => {
+      e.preventDefault(); e.stopPropagation();
+      goldBuySelected = {
+        g: parseInt(el.dataset.gold, 10),
+        p: parseInt(el.dataset.price, 10)
+      };
+      goldOptions.forEach(x => x.classList.remove('selected'));
+      el.classList.add('selected');
+      warnSelectedEl.textContent = goldBuySelected.g + ' золота — ' + goldBuySelected.p + ' грн';
+      goldWarnEl.classList.remove('hidden');
+      if (goldBuyTimer) clearInterval(goldBuyTimer);
+      goldBuyCountdown = 7;
+      updateNextBtn();
+      goldBuyTimer = setInterval(() => {
+        goldBuyCountdown--;
+        if (goldBuyCountdown <= 0){
+          clearInterval(goldBuyTimer);
+          goldBuyTimer = null;
+          goldBuyCountdown = 0;
+        }
+        updateNextBtn();
+      }, 1000);
+    });
+  });
+  goldNextBtn.addEventListener('click', e => {
+    e.preventDefault(); e.stopPropagation();
+    if (goldNextBtn.disabled || !goldBuySelected) return;
+    if (navigator.vibrate) navigator.vibrate([15, 25, 45]);
+    window.open(MONO_URL, '_blank', 'noopener,noreferrer');
+  });
+
+  /* === СОХРАНЕНИЕ === */
+  let lastSaveT = 0;
+  function saveState(force){
+    const now = performance.now();
+    if (!force && now - lastSaveT < 500) return;
+    lastSaveT = now;
+    writeSave({
+      _v: SAVE_STRUCTURE_VERSION,
+      m: Math.floor(money),
+      g: gold,
+      a: autoCount,
+      u: upgraded,
+      u2: upgraded2,
+      u3: upgraded3,
+      bg: bgType,
+      bs: hasSpaceBg,
+      pc: Array.from(usedPromos),
+      _ts: Date.now()
+    });
+  }
+  function loadState(){
+    const d = readSave();
+    money = d.m;
+    gold = d.g;
+    autoCount = d.a;
+    upgraded = d.u;
+    upgraded2 = d.u2;
+    upgraded3 = d.u3;
+    bgType = (typeof d.bg === 'string') ? d.bg : '';
+    hasSpaceBg = !!d.bs;
+    usedPromos.clear();
+    d.pc.forEach(c => usedPromos.add(c));
+    shown = money;
+    goldShown = gold;
+  }
+  window.addEventListener('beforeunload', () => saveState(true));
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') saveState(true);
+  });
+
+  /* === ТРЕЩИНЫ === */
+  let crackLevel = 0;
+  let broken = false;
+  let brokenTimer = 0;
+  let shatter = [];
+  const BROKEN_DURATION = 25;
+  const crackPattern = [];
+
+  function buildCrackPattern(){
+    crackPattern.length = 0;
+    for (let i = 0; i < 14; i++){
+      const startA = (i / 14) * Math.PI * 2 + (Math.random() - 0.5) * 0.55;
+      const pts = [];
+      let a = startA;
+      let r = 0.18 + Math.random() * 0.1;
+      const len = 0.55 + Math.random() * 0.45;
+      for (let j = 0; j <= 5; j++){
+        pts.push({ r, a });
+        r += (len / 5) * (0.8 + Math.random() * 0.4);
+        a += (Math.random() - 0.5) * 0.55;
+      }
+      crackPattern.push(pts);
+    }
+  }
+
+  function breakSphere(){
+    broken = true; brokenTimer = 0; crackLevel = 0;
+    for (let i = 0; i < 90; i++){
+      const a = Math.random() * Math.PI * 2;
+      const sp = 9 + Math.random() * 16;
+      coins.push({
+        x: rCX + Math.cos(a) * R * 0.65,
+        y: rCY + Math.sin(a) * R * 0.65,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp - 4 - Math.random() * 3,
+        rot: Math.random() * Math.PI * 2,
+        vrot: (Math.random() - 0.5) * 0.45,
+        spin: Math.random() * Math.PI * 2,
+        vspin: 0.14 + Math.random() * 0.28,
+        size: 9 + Math.random() * 10,
+        life: 1.4
+      });
+    }
+    if (coins.length > 320) coins.splice(0, coins.length - 320);
+    shatter = [];
+    for (let i = 0; i < 64; i++){
+      const a = (i / 64) * Math.PI * 2 + (Math.random() - 0.5) * 0.15;
+      const r = R * (0.8 + Math.random() * 0.2);
+      shatter.push({
+        homeX: rCX + Math.cos(a) * r,
+        homeY: rCY + Math.sin(a) * r,
+        angle: a,
+        scatterDist: R * (1.6 + Math.random() * 1.6),
+        hue: upgraded3 ? 180 + Math.random() * 60 : (upgraded2 ? 280 + Math.random() * 40 : (upgraded ? 260 + Math.random() * 80 : Math.random() * 360)),
+        size: 2 + Math.random() * 3.5,
+        phase: Math.random() * Math.PI * 2
+      });
+    }
+    ripples.push({ x: rCX, y: rCY, r: R * 0.5, life: 1.4 });
+    ripples.push({ x: rCX, y: rCY, r: R * 0.3, life: 1.0 });
+    if (navigator.vibrate) navigator.vibrate([50, 30, 70, 30, 140]);
+  }
+
+  function startReset(){
+    if (resetting || broken) return;
+    resetting = true;
+    resetT = 0;
+    money = 0;
+    gold = 0;
+    autoCount = 0;
+    shatter = [];
+    for (let i = 0; i < 200; i++){
+      const a = Math.random() * Math.PI * 2;
+      const r = R * (0.6 + Math.random() * 0.5);
+      shatter.push({
+        homeX: rCX + Math.cos(a) * r,
+        homeY: rCY + Math.sin(a) * r,
+        angle: a,
+        scatterDist: R * (2.0 + Math.random() * 2.5),
+        hue: Math.random() * 360,
+        size: 2 + Math.random() * 4.5,
+        phase: Math.random() * Math.PI * 2
+      });
+    }
+    for (let i = 0; i < 140; i++){
+      const a = Math.random() * Math.PI * 2;
+      const sp = 12 + Math.random() * 22;
+      coins.push({
+        x: rCX + Math.cos(a) * R * 0.5,
+        y: rCY + Math.sin(a) * R * 0.5,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp - 5 - Math.random() * 5,
+        rot: Math.random() * Math.PI * 2,
+        vrot: (Math.random() - 0.5) * 0.6,
+        spin: Math.random() * Math.PI * 2,
+        vspin: 0.15 + Math.random() * 0.35,
+        size: 9 + Math.random() * 11,
+        life: 1.8
+      });
+    }
+    if (coins.length > 400) coins.splice(0, coins.length - 400);
+    ripples.push({ x: rCX, y: rCY, r: R * 0.25, life: 2.4 });
+    ripples.push({ x: rCX, y: rCY, r: R * 0.5, life: 2.0 });
+    ripples.push({ x: rCX, y: rCY, r: R * 0.75, life: 1.6 });
+    if (navigator.vibrate) navigator.vibrate([120, 60, 120, 60, 240, 80, 320]);
+  }
+
+  function finalizeReset(){
+    upgraded = false; upgraded2 = false; upgraded3 = false;
+    autoCount = 0;
+    bgType = '';
+    hasSpaceBg = false;
+    usedPromos.clear();
+    crackLevel = 0;
+    broken = false;
+    brokenTimer = 0;
+    shatter = [];
+    coins.length = 0;
+    ripples.length = 0;
+    texts.length = 0;
+    resetting = false;
+    resetT = 0;
+    computeR();
+    initJelly();
+    buildSpaceBg();
+    writeSave(getDefaultSave());
+    pulse = 2.0;
+    boost = 2.0;
+    updateUI();
+    resetBtn.textContent = 'Очистить прогресс';
+    resetBtn.classList.remove('countdown', 'confirm');
+    resetArmed = false;
+    resetCountdown = 0;
+  }
+
+  function updateBroken(dt){
+    brokenTimer += dt;
+    if (brokenTimer >= BROKEN_DURATION){
+      broken = false; brokenTimer = 0; shatter = []; crackLevel = 0;
+      pulse = 1.4; boost = 1.6;
+      if (navigator.vibrate) navigator.vibrate(30);
+    }
+  }
+
+  /* === ЖЕЛЕ === */
+  const N = 40;
+  const angles = new Float32Array(N);
+  const px = new Float32Array(N);
+  const py = new Float32Array(N);
+  const vx = new Float32Array(N);
+  const vy = new Float32Array(N);
+  const hx = new Float32Array(N);
+  const hy = new Float32Array(N);
+  let avgX = 0, avgY = 0, rCX = 0, rCY = 0;
+  let dragging = false, dragX = 0, dragY = 0, pointerId = null, stretchVis = 0;
+  let clickTimes = [], tension = 0;
+  let lastAccMag = 9.81, motionReady = false, shakeImpulse = 0;
+
+  function initJelly(){
+    for (let i = 0; i < N; i++){
+      angles[i] = i * Math.PI * 2 / N - Math.PI / 2;
+      px[i] = cx + Math.cos(angles[i]) * R;
+      py[i] = cyBase + Math.sin(angles[i]) * R;
+      vx[i] = 0; vy[i] = 0;
+    }
+    avgX = cx; avgY = cyBase;
+    rCX = cx; rCY = cyBase;
+  }
+
+  function updateJelly(dt, t){
+    const floatY = cyBase + Math.sin(t * 1.15) * 8;
+    rCX = cx;
+    rCY = floatY;
+    const restR = R * (1 + pulse * 0.07);
+    let pullX = 0, pullY = 0, pullLen = 0;
+    if (dragging && !broken && !resetting){
+      const dx = dragX - rCX, dy = dragY - rCY;
+      const dist = Math.hypot(dx, dy);
+      if (dist > 1){
+        const maxS = R * 0.95;
+        const cl = Math.min(dist, maxS);
+        pullX = dx / dist * cl;
+        pullY = dy / dist * cl;
+        pullLen = cl;
+      }
+    }
+    const tgt = pullLen / (R * 0.95);
+    stretchVis += (tgt - stretchVis) * Math.min(1, dt * 12);
+    const hasPull = pullLen > 0.5;
+    const npx = hasPull ? pullX / pullLen : 0;
+    const npy = hasPull ? pullY / pullLen : 0;
+    for (let i = 0; i < N; i++){
+      const a = angles[i];
+      const ca = Math.cos(a), sa = Math.sin(a);
+      let rx = rCX + ca * restR;
+      let ry = rCY + sa * restR;
+      if (hasPull){
+        const al = ca * npx + sa * npy;
+        const w = al > 0 ? al * al : 0;
+        rx += pullX * w;
+        ry += pullY * w;
+      }
+      hx[i] = rx; hy[i] = ry;
+    }
+    let tot = 0;
+    for (let i = 0; i < N; i++){
+      const j = (i + 1) % N;
+      tot += Math.hypot(hx[j] - hx[i], hy[j] - hy[i]);
+    }
+    const restDist = tot / N;
+    const k = 240, damp = Math.exp(-6.5 * dt);
+    for (let i = 0; i < N; i++){
+      vx[i] += (hx[i] - px[i]) * k * dt;
+      vy[i] += (hy[i] - py[i]) * k * dt;
+      vx[i] *= damp;
+      vy[i] *= damp;
+    }
+    const nk = 45 * (1 - stretchVis * 0.55);
+    for (let i = 0; i < N; i++){
+      const j = (i + 1) % N;
+      const dx = px[j] - px[i], dy = py[j] - py[i];
+      const dist = Math.hypot(dx, dy) || 1;
+      const f = (dist - restDist) * nk;
+      const fx = dx / dist * f, fy = dy / dist * f;
+      vx[i] += fx * dt; vy[i] += fy * dt;
+      vx[j] -= fx * dt; vy[j] -= fy * dt;
+    }
+    for (let i = 0; i < N; i++){
+      px[i] += vx[i] * dt;
+      py[i] += vy[i] * dt;
+    }
+    let sx = 0, sy = 0;
+    for (let i = 0; i < N; i++){ sx += px[i]; sy += py[i]; }
+    avgX = sx / N; avgY = sy / N;
+  }
+
+  function buildJellyPath(){
+    const path = new Path2D();
+    path.moveTo(px[0], py[0]);
+    for (let i = 0; i < N; i++){
+      const i0 = (i - 1 + N) % N;
+      const i2 = (i + 1) % N;
+      const i3 = (i + 2) % N;
+      const c1x = px[i] + (px[i2] - px[i0]) / 6;
+      const c1y = py[i] + (py[i2] - py[i0]) / 6;
+      const c2x = px[i2] - (px[i3] - px[i]) / 6;
+      const c2y = py[i2] - (py[i3] - py[i]) / 6;
+      path.bezierCurveTo(c1x, c1y, c2x, c2y, px[i2], py[i2]);
+    }
+    path.closePath();
+    return path;
+  }
+
+  /* === СПРАЙТЫ === */
+  const bgCanvas = document.createElement('canvas');
+  const bgCtx = bgCanvas.getContext('2d', { alpha: false });
+  const vignetteCanvas = document.createElement('canvas');
+  let glowSprite = null, highlightSprite = null, rimSprite = null, coinSprite = null;
+  const blobSprites = [];
+
+  function buildSprites(){
+    const BS = 256;
+    for (let i = 0; i < 8; i++){
+      const c = document.createElement('canvas');
+      c.width = c.height = BS;
+      const g = c.getContext('2d');
+      const hue = i * 45;
+      const gr = g.createRadialGradient(BS/2, BS/2, 0, BS/2, BS/2, BS/2);
+      gr.addColorStop(0, 'hsla(' + hue + ',100%,68%,.95)');
+      gr.addColorStop(0.45, 'hsla(' + ((hue+45)%360) + ',100%,55%,.3)');
+      gr.addColorStop(1, 'hsla(0,0%,0%,0)');
+      g.fillStyle = gr;
+      g.beginPath(); g.arc(BS/2, BS/2, BS/2, 0, Math.PI*2); g.fill();
+      blobSprites.push(c);
+    }
+    {
+      const GS = 512, r = GS/2;
+      const c = document.createElement('canvas'); c.width = c.height = GS;
+      const g = c.getContext('2d');
+      const gr = g.createRadialGradient(r, r, r*.28, r, r, r);
+      gr.addColorStop(0, 'rgba(130,170,255,.75)');
+      gr.addColorStop(.45, 'rgba(110,130,255,.2)');
+      gr.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = gr;
+      g.beginPath(); g.arc(r, r, r, 0, Math.PI*2); g.fill();
+      glowSprite = c;
+    }
+    {
+      const HS = 512, r = HS/2;
+      const c = document.createElement('canvas'); c.width = c.height = HS;
+      const g = c.getContext('2d');
+      const gr = g.createRadialGradient(r*.62, r*.55, 0, r*.62, r*.55, r);
+      gr.addColorStop(0, 'rgba(255,255,255,.85)');
+      gr.addColorStop(.18, 'rgba(255,255,255,.16)');
+      gr.addColorStop(.55, 'rgba(255,255,255,.03)');
+      gr.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = gr;
+      g.beginPath(); g.arc(r, r, r, 0, Math.PI*2); g.fill();
+      highlightSprite = c;
+    }
+    {
+      const RS = 512, r = RS/2;
+      const c = document.createElement('canvas'); c.width = c.height = RS;
+      const g = c.getContext('2d');
+      const gr = g.createRadialGradient(r, r, r*.55, r, r, r);
+      gr.addColorStop(0, 'rgba(0,0,0,0)');
+      gr.addColorStop(1, 'rgba(0,0,0,.68)');
+      g.fillStyle = gr;
+      g.beginPath(); g.arc(r, r, r, 0, Math.PI*2); g.fill();
+      rimSprite = c;
+    }
+    {
+      const S = 32;
+      const c = document.createElement('canvas'); c.width = c.height = S*2;
+      const g = c.getContext('2d');
+      const gr = g.createRadialGradient(S - S*.35, S - S*.38, S*.06, S, S, S);
+      gr.addColorStop(0, '#fffbd0');
+      gr.addColorStop(.35, '#ffd94f');
+      gr.addColorStop(.75, '#e9a30a');
+      gr.addColorStop(1, '#a86a00');
+      g.fillStyle = gr;
+      g.beginPath(); g.arc(S, S, S, 0, Math.PI*2); g.fill();
+      g.strokeStyle = 'rgba(255,245,180,.85)';
+      g.lineWidth = S*.13;
+      g.beginPath(); g.arc(S, S, S*.62, 0, Math.PI*2); g.stroke();
+      g.fillStyle = 'rgba(120,70,0,.9)';
+      g.font = 'bold ' + (S*1.15) + 'px Arial';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText('$', S, S + S*.05);
+      g.fillStyle = 'rgba(255,255,255,.55)';
+      g.beginPath(); g.arc(S - S*.3, S - S*.35, S*.2, 0, Math.PI*2); g.fill();
+      coinSprite = c;
+    }
+  }
+
+  /* === ФОН === */
+  function buildBackground(){
+    bgCanvas.width = Math.floor(bgW * DPR);
+    bgCanvas.height = Math.floor(bgH * DPR);
+    bgCtx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const g = bgCtx;
+    const gr = g.createRadialGradient(bgW/2, bgH/2, 0, bgW/2, bgH/2, Math.max(bgW, bgH) * 0.9);
+    gr.addColorStop(0, '#1b2250');
+    gr.addColorStop(.4, '#0b0d22');
+    gr.addColorStop(1, '#03030a');
+    g.fillStyle = gr;
+    g.fillRect(0, 0, bgW, bgH);
+    g.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 6; i++){
+      const hue = 200 + i * 40 + Math.random() * 30;
+      const nx = Math.random() * bgW, ny = Math.random() * bgH;
+      const rr = Math.max(bgW, bgH) * (0.3 + Math.random() * 0.28);
+      const ng = g.createRadialGradient(nx, ny, 0, nx, ny, rr);
+      ng.addColorStop(0, 'hsla(' + hue + ',85%,58%,.1)');
+      ng.addColorStop(.5, 'hsla(' + (hue+40) + ',85%,48%,.045)');
+      ng.addColorStop(1, 'hsla(0,0%,0%,0)');
+      g.fillStyle = ng;
+      g.beginPath(); g.arc(nx, ny, rr, 0, Math.PI*2); g.fill();
+    }
+    const n = Math.round(bgW * bgH / 20000);
+    for (let i = 0; i < n; i++){
+      g.fillStyle = 'rgba(200,220,255,' + (0.15 + Math.random()*0.5) + ')';
+      g.beginPath();
+      g.arc(Math.random()*bgW, Math.random()*bgH, Math.random()*1.1 + 0.3, 0, Math.PI*2);
+      g.fill();
+    }
+    g.globalCompositeOperation = 'source-over';
+  }
+
+  function buildVignette(){
+    vignetteCanvas.width = W;
+    vignetteCanvas.height = H;
+    const g = vignetteCanvas.getContext('2d');
+    const gr = g.createRadialGradient(W/2, H/2, Math.min(W,H)*0.28, W/2, H/2, Math.max(W,H)*0.72);
+    gr.addColorStop(0, 'rgba(255,60,40,0)');
+    gr.addColorStop(1, 'rgba(255,60,40,1)');
+    g.fillStyle = gr;
+    g.fillRect(0, 0, W, H);
+  }
+
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    bgW = Math.ceil(W * BG_OVERSIZE);
+    bgH = Math.ceil(H * BG_OVERSIZE);
+    bgOffX = (W - bgW) / 2;
+    bgOffY = (H - bgH) / 2;
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    cx = W / 2;
+    cyBase = H / 2 + Math.min(H * 0.03, 30);
+    computeR();
+    buildBackground();
+    buildVignette();
+    buildParticles();
+    buildSpaceBg();
+    initJelly();
+  }
+
+  function buildParticles(){
+    twinkleStars = [];
+    const n = Math.min(80, Math.round(bgW * bgH / 40000));
+    for (let i = 0; i < n; i++){
+      twinkleStars.push({
+        x: Math.random()*bgW, y: Math.random()*bgH,
+        r: 0.6 + Math.random()*1.2,
+        p: Math.random()*Math.PI*2,
+        sp: 0.6 + Math.random()*1.6,
+        baseA: 0.25 + Math.random()*0.5
+      });
+    }
+    dust = [];
+    const dn = Math.min(60, Math.round(bgW * bgH / 45000));
+    for (let i = 0; i < dn; i++){
+      dust.push({
+        x: Math.random()*bgW, y: Math.random()*bgH,
+        r: 0.8 + Math.random()*1.6,
+        vx: (Math.random()-0.5)*10,
+        vy: -6 - Math.random()*14,
+        p: Math.random()*Math.PI*2,
+        ps: 0.7 + Math.random()*1.5,
+        alpha: 0.18 + Math.random()*0.35
+      });
+    }
+  }
+
+  function buildSpaceBg(){
+    bgStars = [];
+    bgGalaxies = [];
+    if (bgType !== 'space') return;
+    const n = Math.min(220, Math.round(bgW * bgH / 16000));
+    for (let i = 0; i < n; i++){
+      bgStars.push({
+        x: Math.random()*bgW, y: Math.random()*bgH,
+        r: 0.5 + Math.random()*1.6,
+        p: Math.random()*Math.PI*2,
+        sp: 0.4 + Math.random()*2.2,
+        baseA: 0.2 + Math.random()*0.7
+      });
+    }
+    const gn = 5 + Math.floor(Math.random()*3);
+    for (let i = 0; i < gn; i++){
+      bgGalaxies.push({
+        x: Math.random()*bgW, y: Math.random()*bgH,
+        r: Math.max(bgW, bgH) * (0.07 + Math.random()*0.13),
+        hue: 200 + Math.random()*140,
+        angle: Math.random()*Math.PI,
+        rotSpeed: (Math.random()-0.5)*0.15,
+        pulsePhase: Math.random()*Math.PI*2,
+        pulseSpeed: 0.3 + Math.random()*0.5,
+        alpha: 0.30 + Math.random()*0.30
+      });
+    }
+  }
+
+  /* === КОЛЬЦА === */
+  function getRings(){
+    const lvl = upgraded3 ? 3 : (upgraded2 ? 2 : (upgraded ? 1 : 0));
+    const out = [];
+    if (lvl >= 2){
+      out.push({ tilt:0, rx:R*1.85, ry:R*0.42, hue:280, particles:34, speed:1.4, lineWidth:R*0.10 });
+    }
+    if (lvl >= 3){
+      out.push({ tilt:1.05, rx:R*1.65, ry:R*0.36, hue:200, particles:28, speed:-1.1, lineWidth:R*0.07 });
+      out.push({ tilt:-1.05, rx:R*1.65, ry:R*0.36, hue:330, particles:28, speed:1.3, lineWidth:R*0.07 });
+    }
+    return out;
+  }
+
+  function drawRing(t, ring, front){
+    const cosT = Math.cos(ring.tilt), sinT = Math.sin(ring.tilt);
+    const expand = revealActive ? (0.15 + 0.85 * smoothstep(Math.min(revealT / REVEAL_DUR, 1))) : 1;
+    const rx = ring.rx * expand, ry = ring.ry * expand;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const SAMPLES = 60;
+    for (let pass = 0; pass < 2; pass++){
+      const scale = pass === 0 ? 1 : 0.95;
+      const width = pass === 0 ? ring.lineWidth : ring.lineWidth * 0.3;
+      const alpha = pass === 0 ? (front ? 0.38 : 0.14) : (front ? 0.55 : 0.22);
+      const light = pass === 0 ? 70 : 88;
+      ctx.beginPath();
+      let started = false;
+      for (let i = 0; i <= SAMPLES; i++){
+        const a = (i / SAMPLES) * Math.PI * 2;
+        const lx = Math.cos(a) * rx * scale, ly = Math.sin(a) * ry * scale;
+        const wx = lx * cosT - ly * sinT;
+        const wy = lx * sinT + ly * cosT;
+        const isFront = wy >= 0;
+        if (isFront === front){
+          const pxx = rCX + wx, pyy = rCY + wy;
+          if (!started){ ctx.moveTo(pxx, pyy); started = true; }
+          else ctx.lineTo(pxx, pyy);
+        } else started = false;
+      }
+      ctx.strokeStyle = 'hsla(' + ring.hue + ', 90%, ' + light + '%, ' + alpha + ')';
+      ctx.lineWidth = width;
+      ctx.stroke();
+    }
+    for (let i = 0; i < ring.particles; i++){
+      const a = (i / ring.particles) * Math.PI * 2 + t * ring.speed;
+      const lx = Math.cos(a) * rx, ly = Math.sin(a) * ry;
+      const wx = lx * cosT - ly * sinT;
+      const wy = lx * sinT + ly * cosT;
+      const isFront = wy >= 0;
+      if (isFront !== front) continue;
+      const pxx = rCX + wx, pyy = rCY + wy;
+      const br = 0.55 + 0.45 * Math.sin(t * 4 + i * 1.7);
+      const sz = R * 0.024 * (0.7 + 0.3 * Math.sin(t * 3 + i));
+      ctx.fillStyle = 'hsla(' + ring.hue + ', 100%, 78%, ' + (br * (front ? 0.35 : 0.16)) + ')';
+      ctx.beginPath(); ctx.arc(pxx, pyy, sz * 3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'hsla(' + ring.hue + ', 100%, 92%, ' + (br * (front ? 0.95 : 0.5)) + ')';
+      ctx.beginPath(); ctx.arc(pxx, pyy, sz, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawRings(t, front){
+    const rings = getRings();
+    for (const r of rings) drawRing(t, r, front);
+  }
+
+  /* === СПУТНИКИ === */
+  const SATELLITES = [
+    { orbit:1.55, flat:0.30, speed:0.75, size:0.055, hue:200, phase:0 },
+    { orbit:1.85, flat:0.28, speed:-0.55, size:0.042, hue:330, phase:2.1 }
+  ];
+
+  function drawSatellite(t, sat, front){
+    if (!upgraded3) return;
+    const revAlpha = revealActive ? smoothstep(Math.min(revealT / (REVEAL_DUR * 0.6), 1)) : 1;
+    if (revAlpha < 0.01) return;
+    const revScale = revealActive ? (3 - 2 * smoothstep(Math.min(revealT / REVEAL_DUR, 1))) : 1;
+    const a = t * sat.speed + sat.phase;
+    const lx = Math.cos(a) * R * sat.orbit * revScale;
+    const ly = Math.sin(a) * R * sat.orbit * sat.flat * revScale;
+    const isFront = ly >= 0;
+    if (isFront !== front) return;
+    const x = rCX + lx, y = rCY + ly;
+    const s = R * sat.size;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, s * 4);
+    glow.addColorStop(0, 'hsla(' + sat.hue + ', 100%, 80%, ' + (0.7 * revAlpha) + ')');
+    glow.addColorStop(1, 'hsla(' + sat.hue + ', 100%, 60%, 0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(x, y, s * 4, 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = revAlpha;
+    ctx.fillStyle = 'hsl(' + sat.hue + ', 80%, 85%)';
+    ctx.beginPath(); ctx.arc(x, y, s, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'hsl(' + sat.hue + ', 60%, 40%)';
+    ctx.beginPath(); ctx.arc(x - s*0.3, y + s*0.3, s*0.6, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  /* === ФОН: ГАЛАКТИКИ === */
+  function drawSpaceLayers(t){
+    if (bgType !== 'space') return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const g of bgGalaxies){
+      const rot = g.angle + t * g.rotSpeed;
+      const pulse = 1 + 0.15 * Math.sin(t * g.pulseSpeed + g.pulsePhase);
+      const gr = g.r * pulse;
+      ctx.save();
+      ctx.translate(bgOffX + g.x, bgOffY + g.y);
+      ctx.rotate(rot);
+      for (let arm = 0; arm < 2; arm++){
+        ctx.save();
+        ctx.rotate(arm * Math.PI);
+        const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, gr);
+        grad.addColorStop(0, 'hsla(' + g.hue + ', 90%, 78%, ' + g.alpha + ')');
+        grad.addColorStop(0.4, 'hsla(' + (g.hue+40) + ', 85%, 60%, ' + (g.alpha*0.4) + ')');
+        grad.addColorStop(1, 'hsla(0,0%,0%,0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.ellipse(gr * 0.4, 0, gr * 0.9, gr * 0.35, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      const coreGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, gr * 0.35);
+      coreGrad.addColorStop(0, 'hsla(' + g.hue + ', 100%, 95%, ' + (g.alpha*1.1) + ')');
+      coreGrad.addColorStop(1, 'hsla(0,0%,0%,0)');
+      ctx.fillStyle = coreGrad;
+      ctx.beginPath(); ctx.arc(0, 0, gr * 0.35, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+    for (const s of bgStars){
+      const a = s.baseA * (0.3 + 0.7 * Math.max(0, Math.sin(t * s.sp + s.p)));
+      const sx = bgOffX + s.x, sy = bgOffY + s.y;
+      ctx.globalAlpha = a;
+      ctx.fillStyle = '#e0eaff';
+      ctx.beginPath(); ctx.arc(sx, sy, s.r, 0, Math.PI * 2); ctx.fill();
+      if (s.r > 1.3 && a > 0.55){
+        ctx.globalAlpha = a * 0.45;
+        ctx.strokeStyle = '#e0eaff';
+        ctx.lineWidth = 0.7;
+        const len = s.r * 4;
+        ctx.beginPath();
+        ctx.moveTo(sx - len, sy); ctx.lineTo(sx + len, sy);
+        ctx.moveTo(sx, sy - len); ctx.lineTo(sx, sy + len);
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
+  /* === СФЕРА === */
+  function drawSphere(t){
+    const lvl = upgraded3 ? 3 : (upgraded2 ? 2 : (upgraded ? 1 : 0));
+    const crackRed = crackLevel, autoGlow = Math.max(buyFlash, 0);
+    let hueBase;
+    if (lvl === 3) hueBase = (t*10 + 200) % 360;
+    else if (lvl === 2) hueBase = (t*14 + 280) % 360;
+    else if (lvl === 1) hueBase = (t*22 + 250) % 360;
+    else hueBase = (t*34) % 360;
+
+    if (!broken) drawRings(t, false);
+    if (!broken && upgraded3){ for (const s of SATELLITES) drawSatellite(t, s, false); }
+
+    const path = buildJellyPath();
+    const glowR = R * (1 + stretchVis * 0.35);
+    const glowSize = glowR * (4.4 + tension*1.2 + autoGlow*1.4 + crackRed*1.2 + (lvl===3?1.4:(lvl===2?1:0)));
+    const jx = (Math.random()-0.5)*(tension*4 + crackRed*6);
+    const jy = (Math.random()-0.5)*(tension*4 + crackRed*6);
+
+    ctx.globalCompositeOperation = 'lighter';
+    if (autoGlow > 0.01){
+      const gs = R*(5.5+autoGlow*2.5);
+      ctx.globalAlpha = autoGlow*0.55;
+      ctx.drawImage(glowSprite, rCX-gs/2, rCY-gs/2, gs, gs);
+    }
+    if (crackRed > 0.05){
+      const cs = R*(4.5+crackRed*1.5);
+      ctx.globalAlpha = crackRed*0.45;
+      ctx.drawImage(glowSprite, rCX-cs/2, rCY-cs/2, cs, cs);
+    }
+    if (lvl === 3){
+      const ps = R*6.5;
+      ctx.globalAlpha = 0.38 + Math.sin(t*1.1)*0.08;
+      ctx.drawImage(glowSprite, rCX-ps/2, rCY-ps/2, ps, ps);
+    } else if (lvl === 2){
+      const ps = R*5.8;
+      ctx.globalAlpha = 0.35 + Math.sin(t*1.3)*0.08;
+      ctx.drawImage(glowSprite, rCX-ps/2, rCY-ps/2, ps, ps);
+    }
+    ctx.globalAlpha = 0.55 + pulse*0.35 + tension*0.35 + stretchVis*0.25 + autoGlow*0.35;
+    ctx.drawImage(glowSprite, rCX-glowSize/2+jx, rCY-glowSize/2+jy, glowSize, glowSize);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+
+    let baseFill = '#080a1c';
+    if (lvl === 3) baseFill = '#08212e';
+    else if (lvl === 2) baseFill = '#150428';
+    ctx.fillStyle = baseFill;
+    ctx.fill(path);
+
+    ctx.save();
+    ctx.clip(path);
+
+    if (lvl === 3){
+      const coverX = rCX - R*3, coverW = R*6;
+      const bgGrad = ctx.createLinearGradient(rCX, rCY - R, rCX, rCY + R);
+      bgGrad.addColorStop(0, 'rgba(30, 100, 140, 0.6)');
+      bgGrad.addColorStop(0.5, 'rgba(50, 80, 160, 0.5)');
+      bgGrad.addColorStop(1, 'rgba(30, 50, 120, 0.6)');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(coverX, rCY - R*2, coverW, R*4);
+      const bandColors = [[60,200,220],[40,120,200],[140,80,200],[30,80,160]];
+      for (let b = -10; b <= 10; b++){
+        const yy = rCY + b * R * 0.18;
+        const col = bandColors[((b + 20) % 4 + 4) % 4];
+        const waveAmp = R * 0.05;
+        const wavePhase = b * 0.8 + orbAngle * 1.5;
+        ctx.beginPath();
+        for (let x = -R*2; x <= R*2; x += 6){
+          const y = yy + Math.sin(x * 0.02 + wavePhase) * waveAmp;
+          if (x === -R*2) ctx.moveTo(rCX + x, y);
+          else ctx.lineTo(rCX + x, y);
+        }
+        for (let x = R*2; x >= -R*2; x -= 6){
+          const y = yy + R*0.18 + Math.sin(x * 0.02 + wavePhase) * waveAmp;
+          ctx.lineTo(rCX + x, y);
+        }
+        ctx.closePath();
+        ctx.fillStyle = 'rgba(' + col[0] + ', ' + col[1] + ', ' + col[2] + ', 0.55)';
+        ctx.fill();
+      }
+      const spotX = rCX + Math.sin(orbAngle * 0.25) * R * 0.3;
+      const spotY = rCY + R * 0.22;
+      const spotG = ctx.createRadialGradient(spotX, spotY, 0, spotX, spotY, R * 0.32);
+      spotG.addColorStop(0, 'rgba(255, 150, 100, 0.75)');
+      spotG.addColorStop(0.5, 'rgba(220, 80, 60, 0.5)');
+      spotG.addColorStop(1, 'rgba(180, 40, 40, 0)');
+      ctx.fillStyle = spotG;
+      ctx.beginPath();
+      ctx.ellipse(spotX, spotY, R*0.32, R*0.18, 0, 0, Math.PI*2);
+      ctx.fill();
+      for (let s = 0; s < 4; s++){
+        const sx = rCX + Math.sin(s * 2.3 + orbAngle * 0.4) * R * 0.7;
+        const sy = rCY + Math.sin(s * 1.7 + orbAngle * 0.3) * R * 0.5;
+        const sr = R * (0.05 + Math.abs(Math.sin(s)) * 0.05);
+        const sg = ctx.createRadialGradient(sx, sy, 0, sx, sy, sr);
+        sg.addColorStop(0, 'rgba(255, 200, 150, 0.6)');
+        sg.addColorStop(1, 'rgba(255, 200, 150, 0)');
+        ctx.fillStyle = sg;
+        ctx.beginPath();
+        ctx.ellipse(sx, sy, sr, sr*0.6, 0, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.globalCompositeOperation = 'lighter';
+      const pn = ctx.createRadialGradient(rCX, rCY - R*1.1, 0, rCX, rCY - R*1.1, R*0.8);
+      pn.addColorStop(0, 'rgba(180, 240, 255, 0.4)');
+      pn.addColorStop(1, 'rgba(180, 240, 255, 0)');
+      ctx.fillStyle = pn;
+      ctx.fillRect(rCX - R*2, rCY - R*2.5, R*4, R*2);
+      const ps = ctx.createRadialGradient(rCX, rCY + R*1.1, 0, rCX, rCY + R*1.1, R*0.8);
+      ps.addColorStop(0, 'rgba(180, 240, 255, 0.35)');
+      ps.addColorStop(1, 'rgba(180, 240, 255, 0)');
+      ctx.fillStyle = ps;
+      ctx.fillRect(rCX - R*2, rCY + R*0.5, R*4, R*2);
+      ctx.globalCompositeOperation = 'source-over';
+    } else if (lvl === 2){
+      const coverX = rCX - R*2, coverW = R*4;
+      const oceanGrad = ctx.createLinearGradient(rCX, rCY - R, rCX, rCY + R);
+      oceanGrad.addColorStop(0, 'rgba(60, 20, 120, 0.7)');
+      oceanGrad.addColorStop(0.5, 'rgba(100, 40, 180, 0.55)');
+      oceanGrad.addColorStop(1, 'rgba(50, 15, 100, 0.75)');
+      ctx.fillStyle = oceanGrad;
+      ctx.fillRect(coverX, rCY - R*2, coverW, R*4);
+      for (let c = 0; c < 5; c++){
+        const cx2 = rCX + Math.sin(c * 2.3 + orbAngle * 0.15) * R * 0.7;
+        const cy2 = rCY + Math.cos(c * 1.7 + orbAngle * 0.1) * R * 0.6;
+        const size = R * (0.15 + Math.abs(Math.sin(c * 3.1)) * 0.15);
+        const hue = 290 + c * 10;
+        const grd = ctx.createRadialGradient(cx2, cy2, 0, cx2, cy2, size);
+        grd.addColorStop(0, 'hsla(' + hue + ', 80%, 65%, 0.85)');
+        grd.addColorStop(0.6, 'hsla(' + (hue-20) + ', 70%, 45%, 0.7)');
+        grd.addColorStop(1, 'hsla(' + (hue-40) + ', 60%, 30%, 0)');
+        ctx.fillStyle = grd;
+        ctx.beginPath();
+        const pts = 8;
+        for (let i = 0; i <= pts; i++){
+          const a = (i / pts) * Math.PI * 2;
+          const wobble = 1 + 0.3 * Math.sin(i * 2.5 + c);
+          const x = cx2 + Math.cos(a) * size * wobble;
+          const y = cy2 + Math.sin(a) * size * wobble * 0.7;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.fill();
+      }
+      ctx.globalCompositeOperation = 'lighter';
+      for (let i = -6; i <= 6; i++){
+        const yy = rCY + i*R*0.20;
+        const al = 0.06 + 0.05*Math.sin(orbAngle*1.5 + i);
+        ctx.fillStyle = 'rgba(230, 180, 255, ' + al + ')';
+        ctx.fillRect(coverX, yy, coverW, R*0.14);
+      }
+      const pn = ctx.createRadialGradient(rCX, rCY - R*0.95, 0, rCX, rCY - R*0.95, R*0.6);
+      pn.addColorStop(0, 'rgba(255, 220, 255, 0.45)');
+      pn.addColorStop(1, 'rgba(255, 220, 255, 0)');
+      ctx.fillStyle = pn;
+      ctx.fillRect(rCX - R*2, rCY - R*2, R*4, R*1.5);
+      const ps = ctx.createRadialGradient(rCX, rCY + R*0.95, 0, rCX, rCY + R*0.95, R*0.6);
+      ps.addColorStop(0, 'rgba(255, 220, 255, 0.40)');
+      ps.addColorStop(1, 'rgba(255, 220, 255, 0)');
+      ctx.fillStyle = ps;
+      ctx.fillRect(rCX - R*2, rCY + R*0.5, R*4, R*1.5);
+      ctx.globalCompositeOperation = 'source-over';
+    } else if (lvl === 1){
+      const coverX = rCX - R*2, coverW = R*4;
+      const bgGrad = ctx.createRadialGradient(rCX - R*0.3, rCY - R*0.3, 0, rCX, rCY, R*1.2);
+      bgGrad.addColorStop(0, 'rgba(200,120,255,0.35)');
+      bgGrad.addColorStop(0.6, 'rgba(120,40,200,0.20)');
+      bgGrad.addColorStop(1, 'rgba(40,10,80,0.30)');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(coverX, rCY - R*2, coverW, R*4);
+      ctx.globalCompositeOperation = 'lighter';
+      for (let w = 0; w < 5; w++){
+        const yOff = w * R * 0.35 - R*0.7;
+        ctx.beginPath();
+        for (let x = -R*1.5; x <= R*1.5; x += 8){
+          const y = rCY + yOff + Math.sin((x + orbAngle*80) * 0.02 + w) * R * 0.15;
+          if (x === -R*1.5) ctx.moveTo(rCX + x, y);
+          else ctx.lineTo(rCX + x, y);
+        }
+        ctx.strokeStyle = 'hsla(' + (280 + w*15) + ', 100%, 75%, 0.35)';
+        ctx.lineWidth = 2 + Math.sin(orbAngle + w) * 1;
+        ctx.stroke();
+      }
+      for (let i = 0; i < 8; i++){
+        const px2 = rCX + Math.sin(i * 2.3 + orbAngle * 0.6) * R * 0.7;
+        const py2 = rCY + Math.cos(i * 1.7 + orbAngle * 0.5) * R * 0.7;
+        const al = 0.4 + 0.4 * Math.sin(orbAngle * 2 + i);
+        ctx.fillStyle = 'hsla(' + (290 + i*5) + ', 100%, 85%, ' + al + ')';
+        ctx.beginPath(); ctx.arc(px2, py2, R * 0.03, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalCompositeOperation = 'source-over';
+    } else {
+      const coverX = rCX - R*2, coverW = R*4;
+      const g0 = ctx.createLinearGradient(rCX, rCY - R, rCX, rCY + R);
+      g0.addColorStop(0, 'rgba(100,60,180,0.25)');
+      g0.addColorStop(0.5, 'rgba(60,30,120,0.15)');
+      g0.addColorStop(1, 'rgba(30,10,60,0.30)');
+      ctx.fillStyle = g0;
+      ctx.fillRect(coverX, rCY - R*2, coverW, R*4);
+    }
+
+    ctx.globalCompositeOperation = 'lighter';
+    const BLOBS = lvl === 3 ? 8 : (lvl === 2 ? 8 : (lvl === 1 ? 7 : 5));
+    const rotSpeed = lvl === 3 ? 1.9 : (lvl === 2 ? 1.7 : (lvl === 1 ? 1.3 : 1.0));
+    const npx2 = (stretchVis > 0.02 && dragging) ? (dragX-rCX)/Math.max(1,Math.hypot(dragX-rCX,dragY-rCY)) : 0;
+    const npy2 = (stretchVis > 0.02 && dragging) ? (dragY-rCY)/Math.max(1,Math.hypot(dragX-rCX,dragY-rCY)) : 0;
+    for (let i = 0; i < BLOBS; i++){
+      const a = orbAngle*rotSpeed + i*(Math.PI*2/BLOBS);
+      const rr = R*(1.05 + stretchVis*0.65);
+      let bx = rCX + Math.cos(a)*R*0.38;
+      let by = rCY + Math.sin(a*1.25+i)*R*0.38;
+      if (stretchVis > 0.02 && dragging){
+        const ca = Math.cos(a), sa = Math.sin(a);
+        const al = ca*npx2 + sa*npy2;
+        const w = al > 0 ? al*al : 0;
+        bx += (dragX-rCX)*w;
+        by += (dragY-rCY)*w;
+      }
+      let hue;
+      if (lvl === 3) hue = (180 + i*22 + Math.sin(orbAngle*0.6+i)*25) % 360;
+      else if (lvl === 2) hue = (280 + i*12 + Math.sin(orbAngle*0.7+i)*20) % 360;
+      else if (lvl === 1) hue = (hueBase + i*42) % 360;
+      else hue = (hueBase + i*62) % 360;
+      const idx = Math.floor(hue/45)%8;
+      ctx.drawImage(blobSprites[idx], bx-rr, by-rr, rr*2, rr*2);
+    }
+
+    ctx.globalCompositeOperation = 'source-over';
+    const spR = R*(1 + stretchVis*0.85);
+    ctx.drawImage(highlightSprite, rCX-spR, rCY-spR, spR*2, spR*2);
+    ctx.drawImage(rimSprite, rCX-spR, rCY-spR, spR*2, spR*2);
+    if (crackLevel > 0.02) drawCracks();
+    ctx.restore();
+
+    ctx.globalCompositeOperation = 'lighter';
+    let strokeHue;
+    if (autoGlow > 0.15) strokeHue = 48;
+    else if (crackLevel > 0.3) strokeHue = 10;
+    else if (lvl === 3) strokeHue = (200 + Math.sin(t*0.6)*20) % 360;
+    else if (lvl === 2) strokeHue = (280 + Math.sin(t*0.7)*20) % 360;
+    else if (lvl === 1) strokeHue = (255 + Math.sin(t*0.8)*15) % 360;
+    else strokeHue = hueBase;
+    const strokeLig = 72 + tension*15 + stretchVis*8 + autoGlow*20 + crackLevel*10 + (lvl>=2?8:0);
+    ctx.lineWidth = 2.2 + tension*3 + pulse*1.5 + stretchVis*2 + autoGlow*4 + crackLevel*3 + (lvl===3?1.5:(lvl===2?1:0));
+    ctx.strokeStyle = 'hsla(' + strokeHue + ',100%,' + strokeLig + '%,' + (0.75+pulse*0.25) + ')';
+    ctx.stroke(path);
+    ctx.globalCompositeOperation = 'source-over';
+
+    if (!broken) drawRings(t, true);
+    if (!broken && upgraded3){ for (const s of SATELLITES) drawSatellite(t, s, true); }
+  }
+
+  function drawCracks(){
+    const vc = crackLevel * crackPattern.length;
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for (let i = 0; i < crackPattern.length; i++){
+      const vis = Math.min(1, Math.max(0, vc - i));
+      if (vis <= 0.02) continue;
+      const pts = crackPattern[i];
+      const dc = Math.max(2, Math.floor(pts.length * vis));
+      ctx.beginPath();
+      for (let j = 0; j < dc; j++){
+        const p = pts[j];
+        const x = rCX + Math.cos(p.a) * p.r * R;
+        const y = rCY + Math.sin(p.a) * p.r * R;
+        if (j === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.strokeStyle = 'rgba(10,3,20,' + (0.55 + crackLevel*0.4) + ')';
+      ctx.lineWidth = 0.6 + crackLevel*2.2;
+      ctx.stroke();
+      ctx.strokeStyle = 'hsla(15,95%,55%,' + (0.35*crackLevel) + ')';
+      ctx.lineWidth = 0.4 + crackLevel*1.4;
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  /* === АВТО-РИНГИ === */
+  function spawnAutoRing(){
+    autoRings.push({ r: R * 0.85, life: 1 });
+    if (autoRings.length > 8) autoRings.shift();
+  }
+  function updateAutoRings(dt){
+    for (let i = autoRings.length - 1; i >= 0; i--){
+      const r = autoRings[i];
+      r.r += 320 * dt;
+      r.life -= dt * 1.05;
+      if (r.life <= 0) autoRings.splice(i, 1);
+    }
+  }
+  function drawAutoRings(){
+    if (!autoRings.length || broken || resetting) return;
+    ctx.globalCompositeOperation = 'lighter';
+    for (const r of autoRings){
+      const a = Math.max(0, r.life);
+      ctx.strokeStyle = 'rgba(255,225,120,' + (a * 0.85) + ')';
+      ctx.lineWidth = 1.5 + a * 4.5;
+      ctx.beginPath();
+      ctx.arc(rCX, rCY, r.r, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,220,' + (a * 0.4) + ')';
+      ctx.lineWidth = 0.8 + a * 1.5;
+      ctx.beginPath();
+      ctx.arc(rCX, rCY, r.r * 0.92, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  /* === АВТО-КЛИК === */
+  function triggerAutoClick(){
+    if (broken || resetting) return;
+    money += autoCount;
+    pulse = Math.max(pulse, 1);
+    boost = Math.max(boost, 1.2);
+    buyFlash = 1;
+    spawnAutoRing();
+    autoRings.push({ r: R * 0.85, life: 0.85 });
+    const perBatch = Math.min(autoCount, 5);
+    for (let i = 0; i < perBatch; i++){
+      const ox = rCX + (Math.random() - 0.5) * R * 0.7;
+      const oy = rCY + (Math.random() - 0.5) * R * 0.7;
+      spawnCoins(ox, oy, 3);
+    }
+    texts.push({ x: rCX, y: rCY - R * 0.7, life: 1, value: autoCount, gold: true });
+    saveState();
+  }
+
+  /* === МОНЕТЫ === */
+  function spawnCoins(x, y, n){
+    const extra = 1 + tension * 1.4 + stretchVis * 0.6;
+    for (let i = 0; i < n; i++){
+      const a = Math.random() * Math.PI * 2;
+      const sp = (2.5 + Math.random() * 7.5) * extra;
+      coins.push({
+        x, y,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp - 3.5 - Math.random() * 3,
+        rot: Math.random() * Math.PI * 2,
+        vrot: (Math.random() - 0.5) * 0.35,
+        spin: Math.random() * Math.PI * 2,
+        vspin: 0.12 + Math.random() * 0.22,
+        size: 8 + Math.random() * 9,
+        life: 1
+      });
+    }
+    if (coins.length > 320) coins.splice(0, coins.length - 320);
+  }
+  function updateCoins(dt){
+    const g = 1900;
+    for (let i = coins.length - 1; i >= 0; i--){
+      const c = coins[i];
+      c.vy += g * dt;
+      c.x += c.vx * dt * 0.6;
+      c.y += c.vy * dt;
+      c.vx *= Math.pow(0.35, dt);
+      c.rot += c.vrot * dt * 60;
+      c.spin += c.vspin * dt * 60;
+      c.life -= dt * 1.0;
+      if (c.life <= 0 || c.y > H + 80 || c.x < -100 || c.x > W + 100){
+        coins.splice(i, 1);
+      }
+    }
+  }
+  function drawCoins(){
+    for (const c of coins){
+      const s = c.size;
+      const sx = Math.cos(c.spin);
+      const ax = Math.abs(sx) < 0.1 ? 0.1 : sx;
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.rotate(c.rot);
+      ctx.scale(ax, 1);
+      ctx.globalAlpha = c.life < 1 ? Math.min(1, c.life) : 1;
+      ctx.drawImage(coinSprite, -s, -s, s * 2, s * 2);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /* === ВОЛНЫ === */
+  function spawnRipple(x, y){ ripples.push({ x, y, r: R * 0.15, life: 1 }); }
+  function updateRipples(dt){
+    for (let i = ripples.length - 1; i >= 0; i--){
+      const p = ripples[i];
+      p.r += 260 * dt;
+      p.life -= dt * 1.7;
+      if (p.life <= 0) ripples.splice(i, 1);
+    }
+  }
+  function drawRipples(){
+    if (!ripples.length) return;
+    ctx.globalCompositeOperation = 'lighter';
+    for (const p of ripples){
+      const a = Math.max(0, p.life);
+      ctx.strokeStyle = 'rgba(255,215,110,' + (a * 0.7) + ')';
+      ctx.lineWidth = 1.5 + a * 3;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  /* === ВСПЛЫВАЮЩИЙ ТЕКСТ === */
+  function spawnText(x, y, value, goldWin){
+    texts.push({ x, y, life: 1, value: value == null ? 1 : value, goldWin: !!goldWin });
+  }
+  function updateTexts(dt){
+    for (let i = texts.length - 1; i >= 0; i--){
+      const p = texts[i];
+      p.y -= 60 * dt;
+      p.life -= dt * 1.1;
+      if (p.life <= 0) texts.splice(i, 1);
+    }
+  }
+  function drawTexts(){
+    if (!texts.length) return;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = '800 24px Arial';
+    for (const p of texts){
+      ctx.globalAlpha = Math.max(0, p.life);
+      const v = p.value == null ? 1 : p.value;
+      if (p.goldWin){
+        ctx.fillStyle = 'rgba(255,240,140,1)';
+        ctx.font = '800 30px Arial';
+        ctx.fillText('+1 🏆', p.x, p.y);
+        ctx.font = '800 24px Arial';
+      } else {
+        ctx.fillStyle = p.gold ? 'rgba(255,235,140,.98)'
+          : (tension > 0.5 ? 'rgba(255,150,60,.95)' : 'rgba(255,220,120,.95)');
+        const txt = v === 0 ? 'КУПЛЕНО!' : (v > 0 ? '+$' + v : '−$' + (-v));
+        ctx.fillText(txt, p.x, p.y);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  /* === КЛИК ПО СФЕРЕ === */
+  function registerClick(){
+    const now = performance.now();
+    clickTimes.push(now);
+    while (clickTimes.length && now - clickTimes[0] > 1200) clickTimes.shift();
+  }
+  function onClick(x, y){
+    if (broken || revealActive || resetting) return;
+    const val = clickValue();
+    money += val;
+    pulse = 1;
+    boost = 1;
+    registerClick();
+    const burst = 8 + (Math.random() * 6 | 0) + (tension * 8 | 0);
+    spawnCoins(x, y, burst);
+    spawnRipple(x, y);
+    let gotGold = false;
+    if (Math.random() < GOLD_CHANCE){
+      gold++;
+      gotGold = true;
+      goldBadge.classList.remove('pulse-anim');
+      void goldBadge.offsetWidth;
+      goldBadge.classList.add('pulse-anim');
+      spawnText(x, y - R * 0.55, 1, true);
+      buyFlash = 1;
+      for (let i = 0; i < 3; i++) spawnAutoRing();
+      if (navigator.vibrate) navigator.vibrate([18, 25, 45]);
+      updateUI();
+    } else {
+      spawnText(x, y - R * 0.35, val);
+    }
+    if (navigator.vibrate && tension > 0.45 && !gotGold){
+      navigator.vibrate(Math.round(8 + tension * 30));
+    }
+    saveState();
+  }
+
+  /* === ПОИНТЕР === */
+  function getXY(e){
+    const r = canvas.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+  canvas.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    requestMotion();
+    if (broken || revealActive || resetting) return;
+    const { x, y } = getXY(e);
+    const dx = x - avgX, dy = y - avgY, rad = R * 1.15;
+    if (dx * dx + dy * dy <= rad * rad){
+      onClick(x, y);
+      dragging = true;
+      dragX = x;
+      dragY = y;
+      pointerId = e.pointerId;
+      try { canvas.setPointerCapture(e.pointerId); } catch(_){}
+    }
+  }, { passive: false });
+  canvas.addEventListener('pointermove', e => {
+    if (!dragging || e.pointerId !== pointerId) return;
+    e.preventDefault();
+    const { x, y } = getXY(e);
+    dragX = x;
+    dragY = y;
+  }, { passive: false });
+  function endDrag(e){
+    if (e.pointerId !== pointerId) return;
+    dragging = false;
+    pointerId = null;
+  }
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', endDrag);
+
+  /* === ГИРОСКОП === */
+  function onMotion(e){
+    const a = e.accelerationIncludingGravity;
+    if (!a || broken || revealActive || resetting) return;
+    const mag = Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z) || 0;
+    const delta = Math.abs(mag - lastAccMag);
+    lastAccMag = mag;
+    if (delta > 5){
+      const strength = Math.min(delta / 12, 1) * 1400;
+      const dm = mag || 1;
+      const dx = a.x / dm, dy = a.y / dm;
+      for (let i = 0; i < N; i++){ vx[i] += dx * strength; vy[i] += dy * strength; }
+      for (let i = 0; i < N; i++){
+        vx[i] += (Math.random() - 0.5) * strength * 0.6;
+        vy[i] += (Math.random() - 0.5) * strength * 0.6;
+      }
+      shakeImpulse = Math.min(1, shakeImpulse + Math.min(delta / 25, 0.8));
+    }
+  }
+  function requestMotion(){
+    if (motionReady) return;
+    motionReady = true;
+    if (typeof DeviceMotionEvent !== 'undefined'){
+      if (typeof DeviceMotionEvent.requestPermission === 'function'){
+        DeviceMotionEvent.requestPermission().then(s => {
+          if (s === 'granted') window.addEventListener('devicemotion', onMotion);
+        }).catch(() => {});
+      } else {
+        window.addEventListener('devicemotion', onMotion);
+      }
+    }
+  }
+
+  /* === REVEAL (анимация обновления) === */
+  function startReveal(){
+    revealActive = true;
+    revealT = 0;
+    revealFromScale = sceneScale;
+  }
+
+  /* === UI === */
+  function updateUI(){
+    /* авто-клик */
+    const autoCanBuy = money >= AUTO_COST;
+    buyAutoBtn.classList.toggle('disabled', !autoCanBuy);
+    itemAuto.classList.toggle('can-buy', autoCanBuy);
+    autoOwnedEl.textContent = autoCount > 0 ? '×' + autoCount : '';
+
+    /* апгрейд 1 */
+    if (upgraded){
+      buyUpgBtn.classList.add('done');
+      buyUpgBtn.classList.remove('disabled');
+      buyUpgBtn.textContent = 'КУПЛЕНО';
+      itemUpg.classList.add('owned');
+      itemUpg.classList.remove('can-buy');
+      upgradeOwnedEl.textContent = '✓';
+    } else {
+      const c = money >= UPGRADE_COST;
+      buyUpgBtn.classList.toggle('disabled', !c);
+      itemUpg.classList.toggle('can-buy', c);
+      itemUpg.classList.remove('owned');
+      buyUpgBtn.textContent = UPGRADE_COST + '$';
+      upgradeOwnedEl.textContent = '';
+    }
+
+    /* апгрейд 2 */
+    if (upgraded2){
+      buyUpg2Btn.classList.add('done');
+      buyUpg2Btn.classList.remove('disabled');
+      buyUpg2Btn.textContent = 'КУПЛЕНО';
+      itemUpg2.classList.add('owned');
+      itemUpg2.classList.remove('can-buy', 'locked');
+      upgrade2OwnedEl.textContent = '✓';
+    } else if (!upgraded){
+      buyUpg2Btn.classList.add('disabled');
+      buyUpg2Btn.classList.remove('done');
+      buyUpg2Btn.textContent = UPGRADE2_COST + '$';
+      itemUpg2.classList.remove('can-buy', 'owned');
+      itemUpg2.classList.add('locked');
+      upgrade2OwnedEl.textContent = '';
+    } else {
+      const c = money >= UPGRADE2_COST;
+      buyUpg2Btn.classList.toggle('disabled', !c);
+      buyUpg2Btn.classList.remove('done');
+      buyUpg2Btn.textContent = UPGRADE2_COST + '$';
+      itemUpg2.classList.toggle('can-buy', c);
+      itemUpg2.classList.remove('owned', 'locked');
+      upgrade2OwnedEl.textContent = '';
+    }
+
+    /* апгрейд 3 */
+    if (upgraded3){
+      buyUpg3Btn.classList.add('done');
+      buyUpg3Btn.classList.remove('disabled');
+      buyUpg3Btn.textContent = 'КУПЛЕНО';
+      itemUpg3.classList.add('owned');
+      itemUpg3.classList.remove('can-buy', 'locked');
+      upgrade3OwnedEl.textContent = '✓';
+    } else if (!upgraded2){
+      buyUpg3Btn.classList.add('disabled');
+      buyUpg3Btn.classList.remove('done');
+      buyUpg3Btn.textContent = UPGRADE3_COST + '$';
+      itemUpg3.classList.remove('can-buy', 'owned');
+      itemUpg3.classList.add('locked');
+      upgrade3OwnedEl.textContent = '';
+    } else {
+      const c = money >= UPGRADE3_COST;
+      buyUpg3Btn.classList.toggle('disabled', !c);
+      buyUpg3Btn.classList.remove('done');
+      buyUpg3Btn.textContent = UPGRADE3_COST + '$';
+      itemUpg3.classList.toggle('can-buy', c);
+      itemUpg3.classList.remove('owned', 'locked');
+      upgrade3OwnedEl.textContent = '';
+    }
+
+    /* фоны */
+    if (bgType === 'space'){
+      buyBgSpaceBtn.classList.add('selected');
+      buyBgSpaceBtn.classList.remove('disabled', 'done');
+      buyBgSpaceBtn.textContent = 'ВЫБРАН';
+      itemBgSpace.classList.add('selected', 'owned');
+      itemBgSpace.classList.remove('can-buy');
+      bgSpaceOwnedEl.textContent = '✓';
+      selectBgDefaultBtn.classList.remove('done', 'disabled');
+      selectBgDefaultBtn.textContent = 'ВЫБРАТЬ';
+      itemBgDefault.classList.remove('selected');
+      itemBgDefault.classList.add('owned');
+    } else {
+      selectBgDefaultBtn.classList.add('done');
+      selectBgDefaultBtn.classList.remove('disabled');
+      selectBgDefaultBtn.textContent = 'ВЫБРАН';
+      itemBgDefault.classList.add('selected', 'owned');
+      if (hasSpaceBg){
+        buyBgSpaceBtn.classList.remove('done', 'disabled', 'selected');
+        buyBgSpaceBtn.textContent = 'ВЫБРАТЬ';
+        itemBgSpace.classList.add('owned');
+        itemBgSpace.classList.remove('selected', 'can-buy');
+        bgSpaceOwnedEl.textContent = '✓';
+      } else {
+        const c = money >= BG_SPACE_COST;
+        buyBgSpaceBtn.classList.toggle('disabled', !c);
+        buyBgSpaceBtn.classList.remove('done', 'selected');
+        buyBgSpaceBtn.textContent = BG_SPACE_COST + '$';
+        itemBgSpace.classList.toggle('can-buy', c);
+        itemBgSpace.classList.remove('owned', 'selected');
+        bgSpaceOwnedEl.textContent = '';
+      }
+    }
+
+    /* обмен */
+    exchangeGoldValEl.textContent = gold;
+    exOneBtn.classList.toggle('disabled', gold < 1);
+    exAllBtn.classList.toggle('disabled', gold < 1);
+
+    /* золото в углу */
+    goldValEl.textContent = Math.floor(goldShown);
+  }
+
+  function afterPurchase(){
+    closeModal(modal);
+    startReveal();
+  }
+
+  /* === ПОКУПКИ === */
+  buyAutoBtn.addEventListener('click', e => {
+    e.preventDefault(); e.stopPropagation();
+    if (money < AUTO_COST) return;
+    money -= AUTO_COST;
+    autoCount++;
+    buyFlash = 1;
+    pulse = Math.max(pulse, 0.7);
+    spawnAutoRing();
+    if (navigator.vibrate) navigator.vibrate(12);
+    updateUI();
+    saveState(true);
+    closeModal(modal);
+  });
+
+  buyUpgBtn.addEventListener('click', e => {
+    e.preventDefault(); e.stopPropagation();
+    if (upgraded || money < UPGRADE_COST) return;
+    money -= UPGRADE_COST;
+    upgraded = true;
+    buyFlash = 1;
+    pulse = Math.max(pulse, 1.2);
+    for (let i = 0; i < 3; i++) spawnAutoRing();
+    if (navigator.vibrate) navigator.vibrate([20, 30, 40]);
+    updateUI();
+    saveState(true);
+    afterPurchase();
+  });
+
+  buyUpg2Btn.addEventListener('click', e => {
+    e.preventDefault(); e.stopPropagation();
+    if (upgraded2 || !upgraded || money < UPGRADE2_COST) return;
+    money -= UPGRADE2_COST;
+    upgraded2 = true;
+    computeR();
+    initJelly();
+    buyFlash = 1.6;
+    pulse = Math.max(pulse, 1.6);
+    for (let i = 0; i < 5; i++) spawnAutoRing();
+    if (navigator.vibrate) navigator.vibrate([30, 40, 60, 40, 80]);
+    updateUI();
+    saveState(true);
+    afterPurchase();
+  });
+
+  buyUpg3Btn.addEventListener('click', e => {
+    e.preventDefault(); e.stopPropagation();
+    if (upgraded3 || !upgraded2 || money < UPGRADE3_COST) return;
+    money -= UPGRADE3_COST;
+    upgraded3 = true;
+    computeR();
+    initJelly();
+    buyFlash = 1.8;
+    pulse = Math.max(pulse, 1.8);
+    for (let i = 0; i < 7; i++) spawnAutoRing();
+    if (navigator.vibrate) navigator.vibrate([40, 50, 80, 50, 120]);
+    updateUI();
+    saveState(true);
+    afterPurchase();
+  });
+
+  /* === ФОНЫ === */
+  buyBgSpaceBtn.addEventListener('click', e => {
+    e.preventDefault(); e.stopPropagation();
+    if (hasSpaceBg){
+      if (bgType !== 'space'){
+        bgType = 'space';
+        buildSpaceBg();
+        buyFlash = 0.9;
+        pulse = Math.max(pulse, 0.9);
+        if (navigator.vibrate) navigator.vibrate([15, 25, 40]);
+        updateUI();
+        saveState(true);
+        closeModal(modal);
+        startReveal();
+      }
+      return;
+    }
+    if (money < BG_SPACE_COST) return;
+    money -= BG_SPACE_COST;
+    hasSpaceBg = true;
+    bgType = 'space';
+    buildSpaceBg();
+    buyFlash = 1;
+    pulse = Math.max(pulse, 1);
+    if (navigator.vibrate) navigator.vibrate([20, 30, 50]);
+    updateUI();
+    saveState(true);
+    closeModal(modal);
+    startReveal();
+  });
+
+  selectBgDefaultBtn.addEventListener('click', e => {
+    e.preventDefault(); e.stopPropagation();
+    if (bgType === '') return;
+    bgType = '';
+    buildSpaceBg();
+    buyFlash = 0.7;
+    pulse = Math.max(pulse, 0.7);
+    if (navigator.vibrate) navigator.vibrate([15, 25, 40]);
+    updateUI();
+    saveState(true);
+    closeModal(modal);
+    startReveal();
+  });
+
+  /* === ОБМЕН ЗОЛОТА === */
+  function exchangeGold(count){
+    if (gold < count || count <= 0) return;
+    gold -= count;
+    money += count * GOLD_RATE;
+    buyFlash = 1;
+    pulse = Math.max(pulse, 1);
+    for (let i = 0; i < 2; i++) spawnAutoRing();
+    for (let i = 0; i < 12; i++){
+      const ox = rCX + (Math.random() - 0.5) * R * 0.6;
+      const oy = rCY + (Math.random() - 0.5) * R * 0.6;
+      spawnCoins(ox, oy, 4);
+    }
+    texts.push({ x: rCX, y: rCY - R * 0.7, life: 1.2, value: count * GOLD_RATE, gold: true });
+    if (navigator.vibrate) navigator.vibrate([15, 20, 35]);
+    updateUI();
+    saveState(true);
+  }
+  exOneBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); exchangeGold(1); });
+  exAllBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); exchangeGold(gold); });
+
+  /* === ПРОМОКОДЫ === */
+  let promoBusy = false;
+  function showPromoMsg(text, type){
+    promoMsgEl.textContent = text;
+    promoMsgEl.className = 'promo-msg ' + (type || '');
+  }
+  function grantPromoReward(code){
+    let rewards = [];
+    if (typeof code.money === 'number' && code.money !== 0){
+      if (code.money > 0){
+        money += code.money;
+        rewards.push('+' + code.money.toLocaleString('en-US') + '$');
+      } else {
+        const loss = Math.min(money, -code.money);
+        money -= loss;
+        rewards.push('−' + loss.toLocaleString('en-US') + '$');
+      }
+    }
+    if (code.gold){
+      gold += code.gold;
+      rewards.push('+' + code.gold + ' 🏆');
+      goldBadge.classList.remove('pulse-anim');
+      void goldBadge.offsetWidth;
+      goldBadge.classList.add('pulse-anim');
+    }
+    if (code.auto){
+      autoCount += code.auto;
+      rewards.push('+' + code.auto + ' ⚡');
+    }
+    const isBad = (code.money && code.money < 0 && !code.gold && !code.auto);
+    showPromoMsg(isBad
+      ? '💀 Ой... Ты потерял ' + rewards.join(' · ')
+      : '✓ Активировано: ' + rewards.join(' · '),
+      isBad ? 'err' : 'ok');
+    promoInputEl.value = '';
+    buyFlash = 1;
+    pulse = Math.max(pulse, 1.1);
+    for (let i = 0; i < 3; i++) spawnAutoRing();
+    if (!isBad){
+      texts.push({ x: rCX, y: rCY - R * 0.7, life: 1.3, value: code.money || 0, gold: true });
+    }
+    if (navigator.vibrate){
+      navigator.vibrate(isBad ? [60, 40, 60, 40, 120] : [20, 30, 50, 30]);
+    }
+    updateUI();
+    saveState(true);
+  }
+  async function activatePromo(){
+    if (promoBusy) return;
+    const raw = promoInputEl.value.trim().toUpperCase().replace(/\s+/g, '');
+    if (!raw) return;
+    const code = PROMO_CODES[raw];
+    if (!code){
+      showPromoMsg('Неверный код', 'err');
+      if (navigator.vibrate) navigator.vibrate([30, 40, 30]);
+      return;
+    }
+    if (usedPromos.has(raw)){
+      showPromoMsg('Этот код уже использован на этом устройстве', 'err');
+      if (navigator.vibrate) navigator.vibrate([30, 40, 30]);
+      return;
+    }
+    promoBusy = true;
+    promoActivateEl.disabled = true;
+    showPromoMsg('Проверяем код...', 'wait');
+    const count = await claimPromoGlobal(raw);
+    promoBusy = false;
+    promoActivateEl.disabled = false;
+
+    if (count === -1){
+      /* Firebase не настроен → активируем локально (один раз на устройстве) */
+      usedPromos.add(raw);
+      grantPromoReward(code);
+      return;
+    }
+    if (count === null){
+      showPromoMsg('❌ Сервер недоступен. Проверь интернет.', 'err');
+      if (navigator.vibrate) navigator.vibrate([30, 40, 30]);
+      return;
+    }
+    if (count > 1){
+      showPromoMsg('❌ Код уже использован кем-то другим', 'err');
+      if (navigator.vibrate) navigator.vibrate([30, 40, 30]);
+      usedPromos.add(raw);
+      saveState(true);
+      return;
+    }
+    usedPromos.add(raw);
+    grantPromoReward(code);
+  }
+  promoActivateEl.addEventListener('click', e => {
+    e.preventDefault(); e.stopPropagation();
+    activatePromo();
+  });
+  promoInputEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter'){ e.preventDefault(); activatePromo(); }
+  });
+
+  /* === МОДАЛКИ === */
+  function openModal(m){ updateUI(); m.classList.remove('hidden'); }
+  function closeModal(m){
+    m.classList.add('hidden');
+    if (m === promoModal){
+      promoInputEl.value = '';
+      showPromoMsg('', '');
+    }
+    if (m === goldBuyModal) resetGoldBuy();
+  }
+  function closeAll(){
+    closeModal(modal);
+    closeModal(exchangeModal);
+    closeModal(promoModal);
+    closeModal(goldBuyModal);
+    closeModal(settingsModal);
+  }
+
+  /* Вкладки магазина */
+  document.querySelectorAll('.shop-tab').forEach(tab => {
+    tab.addEventListener('click', e => {
+      e.preventDefault(); e.stopPropagation();
+      document.querySelectorAll('.shop-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const name = tab.dataset.tab;
+      if (name === 'upgrades'){
+        tabUpgrades.classList.remove('hidden');
+        tabBackgrounds.classList.add('hidden');
+      } else {
+        tabUpgrades.classList.add('hidden');
+        tabBackgrounds.classList.remove('hidden');
+      }
+    });
+  });
+
+  /* Кнопки открытия */
+  shopBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); openModal(modal); });
+  promoBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); openModal(promoModal); });
+  plusBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); openModal(exchangeModal); });
+  goldPlusBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); openModal(goldBuyModal); });
+  settingsBtn.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); openModal(settingsModal); });
+
+  /* Закрытие по крестику/backdrop */
+  document.querySelectorAll('.modal [data-close]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.preventDefault(); e.stopPropagation();
+      const m = el.closest('.modal');
+      if (m) closeModal(m);
+    });
+  });
+  document.querySelectorAll('.modal').forEach(m => {
+    m.addEventListener('pointerdown', e => e.stopPropagation());
+    m.addEventListener('click', e => e.stopPropagation());
+  });
+  window.addEventListener('keydown', e => { if (e.key === 'Escape') closeAll(); });
+
+  /* === КНОПКА СБРОСА (с 5-сек подтверждением) === */
+  resetBtn.addEventListener('click', e => {
+    e.preventDefault(); e.stopPropagation();
+    if (resetting) return;
+
+    if (!resetArmed){
+      /* Первый клик → включаем 5-сек таймер */
+      resetArmed = true;
+      resetCountdown = 5;
+      resetBtn.classList.add('countdown');
+      resetBtn.textContent = 'Подтвердить (' + resetCountdown + ')';
+      if (navigator.vibrate) navigator.vibrate(15);
+      resetCountdownTimer = setInterval(() => {
+        resetCountdown--;
+        if (resetCountdown <= 0){
+          clearInterval(resetCountdownTimer);
+          resetCountdownTimer = null;
+          resetCountdown = 0;
+          resetBtn.classList.remove('countdown');
+          resetBtn.classList.add('confirm');
+          resetBtn.textContent = 'ПОДТВЕРДИТЬ ОЧИСТКУ';
+        } else {
+          resetBtn.textContent = 'Подтвердить (' + resetCountdown + ')';
+        }
+      }, 1000);
+      return;
+    }
+
+    if (resetCountdown > 0){
+      /* Ещё идёт таймер — ничего не делаем, ждём */
+      return;
+    }
+
+    /* Пользователь подтвердил */
+    if (resetCountdownTimer){ clearInterval(resetCountdownTimer); resetCountdownTimer = null; }
+    closeModal(settingsModal);
+    startReset();
+  });
+
+  /* === ГЛАВНЫЙ ЦИКЛ === */
+  let lastT = performance.now();
+  function frame(now){
+    let dt = (now - lastT) / 1000;
+    lastT = now;
+    if (!isFinite(dt) || dt < 0) dt = 0;
+    if (dt > 0.05) dt = 0.05;
+    const t = now / 1000;
+
+    pulse *= Math.exp(-dt * 7);
+    boost *= Math.exp(-dt * 2.6);
+    buyFlash *= Math.exp(-dt * 2.5);
+    if (buyFlash < 0.001) buyFlash = 0;
+    orbAngle += dt * (0.85 + boost * 3.2);
+
+    /* reveal */
+    if (revealActive){
+      revealT += dt;
+      if (revealT >= REVEAL_DUR + 0.5){
+        revealActive = false;
+        revealT = 0;
+      }
+    }
+
+    /* scene scale */
+    const tgtScale = targetSceneScale();
+    if (revealActive){
+      const p = Math.min(1, revealT / REVEAL_DUR);
+      const ease = smoothstep(p);
+      sceneScale = revealFromScale + (tgtScale - revealFromScale) * ease;
+    } else {
+      sceneScale += (tgtScale - sceneScale) * Math.min(1, dt * 3);
+    }
+
+    /* reset */
+    if (resetting){
+      resetT += dt;
+      if (resetT >= RESET_DURATION){
+        finalizeReset();
+      }
+    }
+
+    /* tension */
+    while (clickTimes.length && now - clickTimes[0] > 1200) clickTimes.shift();
+    const cps = clickTimes.length / 1.2;
+    const tgt = Math.min(cps / 9, 1);
+    tension += (tgt - tension) * Math.min(1, dt * (tgt > tension ? 9 : 3));
+    shakeImpulse *= Math.exp(-dt * 4);
+    if (shakeImpulse < 0.001) shakeImpulse = 0;
+
+    /* трещины */
+    if (!broken && !revealActive && !resetting){
+      if (cps > 6) crackLevel += (cps - 6) * dt * 0.16;
+      else crackLevel -= dt * 0.14;
+      crackLevel = Math.max(0, Math.min(1, crackLevel));
+      if (crackLevel >= 1) breakSphere();
+    }
+
+    /* авто-клик */
+    if (autoCount > 0 && !broken && !resetting){
+      autoTimer += dt;
+      if (autoTimer >= AUTO_INTERVAL){
+        autoTimer -= AUTO_INTERVAL;
+        triggerAutoClick();
+      }
+    }
+
+    if (broken) updateBroken(dt);
+    if (!broken && !resetting) updateJelly(dt, t);
+    updateAutoRings(dt);
+
+    /* тряска экрана */
+    const shakeAmt = tension * tension * 7 + shakeImpulse * 14 + crackLevel * 4;
+    const shx = (Math.random() - 0.5) * shakeAmt;
+    const shy = (Math.random() - 0.5) * shakeAmt;
+
+    /* ===== РЕНДЕР ===== */
+    ctx.save();
+    ctx.translate(shx, shy);
+    ctx.translate(W / 2, H / 2);
+    ctx.scale(sceneScale, sceneScale);
+    ctx.translate(-W / 2, -H / 2);
+
+    /* фон */
+    ctx.drawImage(bgCanvas, 0, 0, bgCanvas.width, bgCanvas.height, bgOffX, bgOffY, bgW, bgH);
+    drawSpaceLayers(t);
+
+    /* мерцающие звёзды */
+    for (const s of twinkleStars){
+      const a = s.baseA * (0.4 + 0.6 * (0.5 + 0.5 * Math.sin(t * s.sp + s.p)));
+      ctx.globalAlpha = a;
+      ctx.fillStyle = '#cfe0ff';
+      ctx.beginPath();
+      ctx.arc(bgOffX + s.x, bgOffY + s.y, s.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    /* пыль */
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = '#8fb8ff';
+    for (const p of dust){
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      if (p.y < -10){ p.y = bgH + 10; p.x = Math.random() * bgW; }
+      if (p.x < -10) p.x = bgW + 10;
+      if (p.x > bgW + 10) p.x = -10;
+      const a = p.alpha * (0.5 + 0.5 * Math.sin(t * p.ps + p.p));
+      ctx.globalAlpha = a;
+      ctx.beginPath();
+      ctx.arc(bgOffX + p.x, bgOffY + p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+
+    /* сфера / взрыв / ресет */
+    if (resetting){
+      /* во время сброса рисуем только взрыв и текст */
+      drawResetExplosion(t, resetT, RESET_DURATION);
+    } else if (broken){
+      drawBroken(t);
+    } else {
+      drawSphere(t);
+    }
+
+    drawAutoRings();
+    drawRipples();
+    updateCoins(dt);
+    drawCoins();
+    updateRipples(dt);
+    updateTexts(dt);
+    drawTexts();
+
+    ctx.restore();
+
+/* виньетки — РИСУЕМ ПОСЛЕ restore(), на весь экран без масштаба */
+if (tension > 0.03){
+  ctx.globalAlpha = tension * tension * 0.55;
+  ctx.drawImage(vignetteCanvas, 0, 0, W, H);
+  ctx.globalAlpha = 1;
+}
+if (crackLevel > 0.05){
+  ctx.globalAlpha = crackLevel * 0.35;
+  ctx.drawImage(vignetteCanvas, 0, 0, W, H);
+  ctx.globalAlpha = 1;
+}
+    /* HUD */
+    shown += (money - shown) * Math.min(1, dt * 12);
+    if (Math.abs(money - shown) < 0.4) shown = money;
+    valEl.textContent = Math.floor(shown).toLocaleString('en-US');
+    goldShown += (gold - goldShown) * Math.min(1, dt * 12);
+    if (Math.abs(gold - goldShown) < 0.4) goldShown = gold;
+    goldValEl.textContent = Math.floor(goldShown);
+
+    if (now - lastSaveT > 3000) saveState();
+
+    requestAnimationFrame(frame);
+  }
+
+  /* === ОТРИСОВКА ВЗРЫВА ПРИ СБРОСЕ === */
+  function drawResetExplosion(t, elapsed, duration){
+    const prog = elapsed / duration;
+    const rem = Math.max(0, duration - elapsed);
+    let st;
+    if (prog < 0.05) st = prog / 0.05;
+    else st = 1;
+    st = Math.max(0, Math.min(1, st));
+    const e = st * st * (3 - 2 * st);
+    const fadeAlpha = prog > 0.55 ? Math.max(0, 1 - (prog - 0.55) / 0.45) : 1;
+
+    ctx.globalCompositeOperation = 'lighter';
+    for (const p of shatter){
+      const wob = Math.sin(t * 3 + p.phase) * 4 * e;
+      const wob2 = Math.cos(t * 2.6 + p.phase * 1.3) * 4 * e;
+      const x = p.homeX + Math.cos(p.angle) * p.scatterDist * e + wob;
+      const y = p.homeY + Math.sin(p.angle) * p.scatterDist * e + wob2;
+      const al = (0.35 + e * 0.65) * fadeAlpha;
+      const sz = p.size * (0.6 + e * 0.9);
+      ctx.fillStyle = 'hsla(' + p.hue + ',100%,' + (65 + e * 25) + '%,' + al + ')';
+      ctx.beginPath();
+      ctx.arc(x, y, sz, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'hsla(' + p.hue + ',100%,80%,' + (al * 0.25) + ')';
+      ctx.beginPath();
+      ctx.arc(x, y, sz * 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    const textFade = Math.min(1, rem / 0.6);
+    ctx.globalAlpha = textFade;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const scalePulse = 1 + 0.06 * Math.sin(t * 8);
+    ctx.save();
+    ctx.translate(rCX, rCY);
+    ctx.scale(scalePulse, scalePulse);
+    ctx.fillStyle = '#ff5050';
+    ctx.shadowColor = 'rgba(255,60,60,0.9)';
+    ctx.shadowBlur = 30;
+    ctx.font = '900 clamp(30px,6vw,46px) Arial';
+    ctx.fillText('ОЧИСТКА...', 0, -4);
+    ctx.shadowBlur = 0;
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+
+  /* === ОТРИСОВКА РАЗБИТОЙ СФЕРЫ (без reset) === */
+  function drawBroken(t){
+    const prog = brokenTimer / BROKEN_DURATION;
+    const rem = Math.max(0, BROKEN_DURATION - brokenTimer);
+    let st;
+    if (prog < 0.05) st = prog / 0.05;
+    else if (prog < 0.72) st = 1;
+    else st = 1 - (prog - 0.72) / 0.28;
+    st = Math.max(0, Math.min(1, st));
+    const e = st * st * (3 - 2 * st);
+
+    ctx.globalCompositeOperation = 'lighter';
+    for (const p of shatter){
+      const wob = Math.sin(t * 3 + p.phase) * 4 * e;
+      const wob2 = Math.cos(t * 2.6 + p.phase * 1.3) * 4 * e;
+      const x = p.homeX + Math.cos(p.angle) * p.scatterDist * e + wob;
+      const y = p.homeY + Math.sin(p.angle) * p.scatterDist * e + wob2;
+      const al = 0.35 + e * 0.65;
+      const sz = p.size * (0.6 + e * 0.7);
+      ctx.fillStyle = 'hsla(' + p.hue + ',100%,' + (65 + e * 20) + '%,' + al + ')';
+      ctx.beginPath(); ctx.arc(x, y, sz, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'hsla(' + p.hue + ',100%,80%,' + (al * 0.2) + ')';
+      ctx.beginPath(); ctx.arc(x, y, sz * 2.5, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    const ringR = R * 1.4;
+    ctx.strokeStyle = 'rgba(120,150,220,.22)';
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.arc(rCX, rCY, ringR, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = 'hsla(' + (200 + prog * 100) + ',100%,72%,.95)';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(rCX, rCY, ringR, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * prog);
+    ctx.stroke();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(240,245,255,.95)';
+    ctx.font = '800 clamp(36px,8vw,52px) Arial';
+    ctx.fillText(Math.ceil(rem).toString(), rCX, rCY - 4);
+    ctx.fillStyle = 'rgba(180,200,255,.65)';
+    ctx.font = '700 11px Arial';
+    ctx.fillText('В О С С Т А Н О В Л Е Н И Е', rCX, rCY + 40);
+  }
+
+  /* === RESIZE === */
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', () => setTimeout(resize, 120));
+
+  /* === СТАРТ === */
+  buildSprites();
+  buildCrackPattern();
+  migrateLegacySaves();
+  loadState();
+  resize();
+  updateUI();
+  sceneScale = targetSceneScale();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
